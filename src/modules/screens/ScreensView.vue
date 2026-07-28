@@ -3,20 +3,29 @@ import { useRoute } from 'vue-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { Button } from '@/components/ui/button'
 import { Monitor } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
+import { useDisconnectScreen } from './composables/useDisconnectScreen'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import { formatDate } from '@/lib/utils'
-import type { ScreenStatus } from '@/types/screen'
+import type { Screen, ScreenStatus } from '@/types/screen'
 
 const route = useRoute()
 const companyId = route.params.id as string
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
+const { disconnectScreen, loading: disconnecting } = useDisconnectScreen()
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
   paired: 'Pareada',
   disconnected: 'Desconectada',
+}
+
+async function onDisconnect(screen: Screen) {
+  if (!confirm(`¿Desconectar "${screen.name}"? Volverá a mostrar un código de pairing.`)) return
+  await disconnectScreen(screen.id)
+  await fetchScreens()
 }
 </script>
 
@@ -53,6 +62,7 @@ const STATUS_LABEL: Record<ScreenStatus, string> = {
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Última conexión</TableHead>
+            <TableHead class="text-right"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -64,6 +74,18 @@ const STATUS_LABEL: Record<ScreenStatus, string> = {
               </span>
             </TableCell>
             <TableCell>{{ screen.last_seen_at ? formatDate(screen.last_seen_at) : 'Nunca' }}</TableCell>
+            <TableCell class="text-right">
+              <Button
+                v-if="screen.status === 'paired'"
+                size="sm"
+                variant="ghost"
+                class="text-destructive hover:text-destructive"
+                :disabled="disconnecting"
+                @click="onDisconnect(screen)"
+              >
+                Desconectar
+              </Button>
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
