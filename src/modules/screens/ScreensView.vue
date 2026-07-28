@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Button } from '@/components/ui/button'
-import { Monitor } from '@lucide/vue'
+import { Monitor, Pencil } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDisconnectScreen } from './composables/useDisconnectScreen'
 import PairScreenDialog from './components/PairScreenDialog.vue'
+import EditScreenDialog from './components/EditScreenDialog.vue'
 import { formatDate } from '@/lib/utils'
 import type { Screen, ScreenStatus } from '@/types/screen'
 
@@ -20,6 +22,14 @@ const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
   paired: 'Pareada',
   disconnected: 'Desconectada',
+}
+
+const editOpen = ref(false)
+const selectedScreen = ref<Screen | null>(null)
+
+function openEdit(screen: Screen) {
+  selectedScreen.value = screen
+  editOpen.value = true
 }
 
 async function onDisconnect(screen: Screen) {
@@ -75,20 +85,32 @@ async function onDisconnect(screen: Screen) {
             </TableCell>
             <TableCell>{{ screen.last_seen_at ? formatDate(screen.last_seen_at) : 'Nunca' }}</TableCell>
             <TableCell class="text-right">
-              <Button
-                v-if="screen.status === 'paired'"
-                size="sm"
-                variant="ghost"
-                class="text-destructive hover:text-destructive"
-                :disabled="disconnecting"
-                @click="onDisconnect(screen)"
-              >
-                Desconectar
-              </Button>
+              <div class="flex items-center justify-end gap-1">
+                <Button size="sm" variant="ghost" @click="openEdit(screen)">
+                  <Pencil class="size-4" />
+                  Editar
+                </Button>
+                <Button
+                  v-if="screen.status === 'paired'"
+                  size="sm"
+                  variant="ghost"
+                  class="text-destructive hover:text-destructive"
+                  :disabled="disconnecting"
+                  @click="onDisconnect(screen)"
+                >
+                  Desconectar
+                </Button>
+              </div>
             </TableCell>
           </TableRow>
         </TableBody>
       </Table>
     </div>
   </div>
+
+  <EditScreenDialog
+    v-model:open="editOpen"
+    :screen="selectedScreen"
+    @updated="fetchScreens"
+  />
 </template>
