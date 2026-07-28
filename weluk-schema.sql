@@ -204,9 +204,21 @@ create policy "superadmin acceso total a pairing_codes"
   on pairing_codes for all
   using (is_superadmin());
 
--- Nota: playlist_items se accede vía join con playlists,
--- ajustar policies según se necesite al construir el panel (pendiente de afinar
--- cuando se implemente la lógica real de escritura desde el panel).
+-- =====================================================
+-- ACCESO A STORAGE (bucket `media`, rol authenticated)
+-- El RLS de las tablas de arriba no controla el bucket — storage.objects
+-- tiene su propio RLS, separado. Sin esto, subir/borrar un archivo desde
+-- el panel falla aunque la fila en `media` sí se pueda escribir.
+-- =====================================================
+create policy "superadmin sube a media"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'media' and is_superadmin());
+
+create policy "superadmin borra de media"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'media' and is_superadmin());
 
 -- =====================================================
 -- REALTIME — habilitar en las tablas que escucha el visor
