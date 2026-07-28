@@ -220,6 +220,15 @@ create policy "superadmin borra de media"
   to authenticated
   using (bucket_id = 'media' and is_superadmin());
 
+-- OJO: sin esta policy de SELECT, el DELETE de arriba NO funciona. El endpoint
+-- de borrado primero busca los objetos que coinciden (esa búsqueda pasa por RLS)
+-- y borra lo que encontró; sin SELECT no encuentra nada, borra cero, y responde
+-- 200 con [] — sin error, igual que el gotcha de RLS de la sección 4 del CLAUDE.md.
+create policy "superadmin lee media"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'media' and is_superadmin());
+
 -- =====================================================
 -- REALTIME — habilitar en las tablas que escucha el visor
 -- =====================================================

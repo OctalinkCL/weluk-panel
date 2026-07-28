@@ -11,6 +11,17 @@ const ALLOWED_TYPES: Record<string, MediaType> = {
 }
 const MAX_SIZE_BYTES = 50 * 1024 * 1024
 
+// Evita nombres con espacios/acentos/caracteres especiales en el storage_path —
+// la misma ruta se codifica distinto según si va en la URL (upload) o en el
+// body JSON (remove), y un carácter especial puede terminar sin coincidir
+// byte a byte entre ambos, dejando el archivo sin poder borrarse nunca.
+function sanitizeFileName(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9.\-_]/g, '_')
+}
+
 export function useUploadMedia() {
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -33,7 +44,7 @@ export function useUploadMedia() {
 
     const optimizedFile = mediaType === 'image' ? await optimizeImage(file) : file
 
-    const storagePath = `${companyId}/${crypto.randomUUID()}-${optimizedFile.name}`
+    const storagePath = `${companyId}/${crypto.randomUUID()}-${sanitizeFileName(optimizedFile.name)}`
 
     const { error: uploadErr } = await supabase.storage
       .from('media')
