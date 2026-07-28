@@ -684,6 +684,35 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 
 ---
 
+## 13. Brechas conocidas: documentado vs. implementado
+
+> Distinto de la sección 12 ("Preguntas abiertas"): ahí van decisiones de diseño sin
+> resolver. **Acá van casos donde este CLAUDE.md describe algo como si ya existiera,
+> pero al revisar el código real de ese repo no está** — para no asumir que algo
+> funciona en otro repo solo porque quedó documentado acá. Revisar esta sección cada
+> vez que se pregunte "¿qué falta?".
+
+### `weluk-browser` no implementa Presence ni escribe `last_seen_at` (28 julio 2026)
+
+- **Documentado** (sección 5 de este mismo archivo): el visor usa Supabase Realtime
+  Presence (`channel.track(...)`, evento `presence.sync`) para que el panel sepa en
+  tiempo real si una pantalla está conectada, y `screens.last_seen_at` queda como
+  respaldo histórico.
+- **Real:** revisado el código de `weluk-browser` (`App.vue`, `Pairing.vue`,
+  `Player.vue`, `Overlay.vue`, repo `github.com/OctalinkCL/weluk-browser`) — no hay
+  ningún `.track(`, ningún handler de `presence`, y `last_seen_at` no se escribe en
+  ningún lado. Los canales Realtime que sí existen (`pairing-${deviceUuid}`,
+  `playlist-${playlistId}`, `screen-${deviceUuid}`) son suscripciones a cambios de
+  Postgres (pairing claim, publicación de playlist, cambio de `status`), no Presence.
+- **Impacto en `panel`:** la columna "Última conexión" en `ScreensView` siempre va a
+  mostrar "Nunca", incluso para pantallas conectadas ahora mismo, hasta que esto se
+  implemente en `weluk-browser`. No es un bug de `panel` — el dato de origen no existe.
+- **Para resolverlo (trabajo en `weluk-browser`, no en `panel`):** agregar
+  `channel.track(...)` al canal `screen-${deviceUuid}` que ya existe, y opcionalmente
+  un `UPDATE screens SET last_seen_at = now()` periódico o al desconectar.
+
+---
+
 _Última actualización: 28 julio 2026 — validación en hardware real del incidente de
 egress, bug de reproducción, huérfanos en disco, y decisión de hardware con APK
 preinstalada (ver sección 7). Este documento debe vivir en los 4 repos (o ser
