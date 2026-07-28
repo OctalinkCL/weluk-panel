@@ -13,6 +13,22 @@ export const superadminRoutes: RouteRecordRaw[] = [
         meta: { roles: ['superadmin'] },
         component: () => import('@/modules/companies/CompaniesView.vue'),
       },
+      {
+        path: 'companies/:id',
+        meta: { roles: ['superadmin'] },
+        component: () => import('@/layouts/CompanyDetailLayout.vue'),
+        children: [
+          {
+            path: '',
+            redirect: (to) => ({ name: 'admin-screens', params: to.params }),
+          },
+          {
+            path: 'screens',
+            name: 'admin-screens',
+            component: () => import('@/modules/screens/ScreensView.vue'),
+          },
+        ],
+      },
     ],
   },
 ]

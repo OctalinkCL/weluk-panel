@@ -671,6 +671,16 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 - Checklist de instalación por pantalla — nuevo, sale de las pruebas del 28 julio:
   desactivar el apagado automático del TV (ver sección 7), confirmar que el `panel` sepa
   qué modelos de TV quedan fuera del piso soportado por navegador (sección 3).
+- **Pendiente en `panel`:** `companies.is_active` (agregado al construir el CRUD de
+  `companies`, ver `weluk-schema.sql`) hoy solo controla si un `company_admin` puede
+  operar desde la UI del panel — **las policies de RLS de `media`, `playlists`,
+  `playlist_items` y `screens` para `company_admin` todavía no chequean `is_active`,
+  solo `company_id = auth_company_id()`.** Sin ese chequeo, una company deshabilitada
+  sigue teniendo acceso real a sus datos vía API aunque el panel le muestre un
+  overlay/bloqueo — el overlay es solo mensaje, no seguridad. Agregar el chequeo de
+  `is_active` a cada policy en el mismo momento en que se construya el módulo dueño de
+  esa tabla (`screens`, después `playlists`/`media`), no antes — hoy no hay
+  `company_admin` real ni UI para probarlo.
 
 ---
 
