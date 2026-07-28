@@ -16,7 +16,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { media, loading, error, fetchMedia } = useMedia(props.companyId)
 const { uploadMedia, loading: uploading, error: uploadError } = useUploadMedia()
-const { deleteMedia, loading: deleting } = useDeleteMedia()
+const { deleteMedia, loading: deleting, error: deleteError } = useDeleteMedia()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -65,7 +65,9 @@ async function onDelete(item: Media) {
         </Button>
       </div>
 
-      <p v-if="error || uploadError" class="text-sm text-destructive">{{ error || uploadError }}</p>
+      <p v-if="error || uploadError || deleteError" class="text-sm text-destructive">
+        {{ error || uploadError || deleteError }}
+      </p>
 
       <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Skeleton class="aspect-video" v-for="i in 4" :key="i" />

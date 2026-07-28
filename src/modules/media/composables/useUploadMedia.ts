@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { optimizeImage } from '../lib/imageOptimize'
 import type { Media, MediaType } from '@/types/media'
 
 const ALLOWED_TYPES: Record<string, MediaType> = {
@@ -30,11 +31,13 @@ export function useUploadMedia() {
       return null
     }
 
-    const storagePath = `${companyId}/${crypto.randomUUID()}-${file.name}`
+    const optimizedFile = mediaType === 'image' ? await optimizeImage(file) : file
+
+    const storagePath = `${companyId}/${crypto.randomUUID()}-${optimizedFile.name}`
 
     const { error: uploadErr } = await supabase.storage
       .from('media')
-      .upload(storagePath, file, { cacheControl: '31536000', upsert: false })
+      .upload(storagePath, optimizedFile, { cacheControl: '31536000', upsert: false })
 
     if (uploadErr) {
       error.value = uploadErr.message
