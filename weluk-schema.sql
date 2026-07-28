@@ -188,6 +188,10 @@ create policy "company_admin ve sus playlists"
   on playlists for select
   using (company_id = auth_company_id());
 
+create policy "superadmin acceso total a playlist_items"
+  on playlist_items for all
+  using (is_superadmin());
+
 create policy "superadmin acceso total a screens"
   on screens for all
   using (is_superadmin());
