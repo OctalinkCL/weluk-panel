@@ -27,6 +27,16 @@ export const superadminRoutes: RouteRecordRaw[] = [
             name: 'admin-screens',
             component: () => import('@/modules/screens/ScreensView.vue'),
           },
+          {
+            path: 'playlists',
+            name: 'admin-playlists',
+            component: () => import('@/modules/playlists/PlaylistsView.vue'),
+          },
+          {
+            path: 'playlists/:playlistId',
+            name: 'admin-playlist-detail',
+            component: () => import('@/modules/playlists/PlaylistDetailView.vue'),
+          },
         ],
       },
     ],
