@@ -5,11 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Monitor } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
+import PairScreenDialog from './components/PairScreenDialog.vue'
 import { formatDate } from '@/lib/utils'
 import type { ScreenStatus } from '@/types/screen'
 
 const route = useRoute()
-const { screens, loading, error } = useScreens(route.params.id as string)
+const companyId = route.params.id as string
+const { screens, loading, error, fetchScreens } = useScreens(companyId)
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
@@ -20,9 +22,12 @@ const STATUS_LABEL: Record<ScreenStatus, string> = {
 
 <template>
   <div class="grid gap-4 lg:gap-6">
-    <header class="leading-tight">
-      <h2 class="text-lg font-medium">Screens</h2>
-      <p class="text-sm text-muted-foreground">Pantallas vinculadas a esta company.</p>
+    <header class="flex items-start justify-between lg:items-center">
+      <div class="leading-tight">
+        <h2 class="text-lg font-medium">Screens</h2>
+        <p class="text-sm text-muted-foreground">Pantallas vinculadas a esta company.</p>
+      </div>
+      <PairScreenDialog :company-id="companyId" @paired="fetchScreens" />
     </header>
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>

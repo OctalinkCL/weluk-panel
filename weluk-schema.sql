@@ -196,7 +196,11 @@ create policy "company_admin ve sus screens"
   on screens for select
   using (company_id = auth_company_id());
 
--- Nota: playlist_items y pairing_codes se acceden vía join con playlists/screens,
+create policy "superadmin acceso total a pairing_codes"
+  on pairing_codes for all
+  using (is_superadmin());
+
+-- Nota: playlist_items se accede vía join con playlists,
 -- ajustar policies según se necesite al construir el panel (pendiente de afinar
 -- cuando se implemente la lógica real de escritura desde el panel).
 
