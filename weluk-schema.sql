@@ -150,6 +150,11 @@ create policy "company_admin ve su propia company"
   on companies for select
   using (id = auth_company_id());
 
+create policy "superadmin crea companies"
+  on companies for insert
+  to authenticated
+  with check (is_superadmin());
+
 -- --- Policies: profiles ---
 create policy "superadmin ve todos los profiles"
   on profiles for select

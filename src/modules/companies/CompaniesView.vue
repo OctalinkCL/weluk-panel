@@ -4,16 +4,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Building2 } from '@lucide/vue'
 import { useCompanies } from './composables/useCompanies'
+import CreateCompanyDialog from './components/CreateCompanyDialog.vue'
 import { formatDate } from '@/lib/utils'
 
-const { companies, loading, error } = useCompanies()
+const { companies, loading, error, fetchCompanies } = useCompanies()
 </script>
 
 <template>
   <div class="grid gap-4 lg:gap-6">
-    <header class="leading-tight">
-      <h1 class="text-xl font-medium">Companies</h1>
-      <p class="text-sm text-muted-foreground">Clientes administrados en Weluk.</p>
+    <header class="flex items-start justify-between lg:items-center">
+      <div class="leading-tight">
+        <h1 class="text-xl font-medium">Companies</h1>
+        <p class="text-sm text-muted-foreground">Clientes administrados en Weluk.</p>
+      </div>
+      <CreateCompanyDialog @created="fetchCompanies" />
     </header>
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
