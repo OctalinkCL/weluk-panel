@@ -12,6 +12,7 @@ create extension if not exists "pgcrypto";
 create table companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  is_active boolean not null default true, -- soft-disable (ej. no pago) — nunca se borra la company
   created_at timestamptz not null default now()
 );
 
@@ -153,6 +154,12 @@ create policy "company_admin ve su propia company"
 create policy "superadmin crea companies"
   on companies for insert
   to authenticated
+  with check (is_superadmin());
+
+create policy "superadmin edita companies"
+  on companies for update
+  to authenticated
+  using (is_superadmin())
   with check (is_superadmin());
 
 -- --- Policies: profiles ---
