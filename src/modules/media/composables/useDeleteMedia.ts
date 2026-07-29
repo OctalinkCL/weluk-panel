@@ -6,6 +6,12 @@ export function useDeleteMedia() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  async function getPlaylistsUsing(mediaId: string): Promise<string[]> {
+    const { data } = await supabase.from('playlist_items').select('playlists(name)').eq('media_id', mediaId)
+    const rows = (data ?? []) as unknown as { playlists: { name: string } | null }[]
+    return rows.map((row) => row.playlists?.name).filter((name): name is string => !!name)
+  }
+
   async function deleteMedia(item: Media): Promise<boolean> {
     loading.value = true
     error.value = null
@@ -37,5 +43,5 @@ export function useDeleteMedia() {
     return true
   }
 
-  return { deleteMedia, loading, error }
+  return { deleteMedia, getPlaylistsUsing, loading, error }
 }

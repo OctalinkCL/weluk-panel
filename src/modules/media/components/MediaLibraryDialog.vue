@@ -16,7 +16,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { media, loading, error, fetchMedia } = useMedia(props.companyId)
 const { uploadMedia, loading: uploading, error: uploadError } = useUploadMedia()
-const { deleteMedia, loading: deleting, error: deleteError } = useDeleteMedia()
+const { deleteMedia, getPlaylistsUsing, loading: deleting, error: deleteError } = useDeleteMedia()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -38,7 +38,13 @@ function fileName(storagePath: string) {
 }
 
 async function onDelete(item: Media) {
-  if (!confirm(`¿Eliminar "${fileName(item.storage_path)}"? Se quitará también de cualquier playlist que lo use.`)) return
+  const playlistNames = await getPlaylistsUsing(item.id)
+  const usageWarning =
+    playlistNames.length > 0
+      ? ` Está en uso en: ${playlistNames.join(', ')}. Se quitará de ahí y, si alguna está publicada, la pantalla se actualizará sola.`
+      : ''
+
+  if (!confirm(`¿Eliminar "${fileName(item.storage_path)}"?${usageWarning}`)) return
   await deleteMedia(item)
   await fetchMedia()
 }

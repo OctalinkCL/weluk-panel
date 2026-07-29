@@ -205,6 +205,43 @@ create policy "superadmin acceso total a pairing_codes"
   using (is_superadmin());
 
 -- =====================================================
+-- TRIGGERS
+-- =====================================================
+
+-- Al borrar un media que está en uso, las playlists PUBLICADAS que lo usaban
+-- quedan con contenido fantasma para el visor (borrar toca playlist_items,
+-- no playlists, así que el canal Realtime que escucha el visor no se entera).
+-- Este trigger fuerza published_at = now() solo en esas playlists publicadas,
+-- lo que sí dispara el evento que el visor escucha (ver Player.vue de
+-- weluk-browser) y hace que refetcheen y descarten el ítem borrado.
+--
+-- OJO: cuelga de DELETE en `media`, nunca de DELETE en `playlist_items` —
+-- si colgara ahí, se dispararía también cuando alguien solo quita un ítem al
+-- editar una playlist desde el panel, publicando un borrador a la fuerza y
+-- rompiendo el sentido del botón "Publicar" (ver sección 5 del CLAUDE.md).
+-- Tiene que ser BEFORE DELETE: playlist_items todavía existe en ese momento,
+-- antes de que el cascade de la FK lo borre.
+create or replace function notify_playlists_on_media_delete()
+returns trigger
+language plpgsql
+as $$
+begin
+  update playlists
+  set published_at = now()
+  where published_at is not null
+    and id in (
+      select playlist_id from playlist_items where media_id = old.id
+    );
+  return old;
+end;
+$$;
+
+create trigger trg_notify_playlists_on_media_delete
+before delete on media
+for each row
+execute function notify_playlists_on_media_delete();
+
+-- =====================================================
 -- ACCESO A STORAGE (bucket `media`, rol authenticated)
 -- El RLS de las tablas de arriba no controla el bucket — storage.objects
 -- tiene su propio RLS, separado. Sin esto, subir/borrar un archivo desde
