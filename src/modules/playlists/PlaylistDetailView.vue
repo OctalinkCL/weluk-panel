@@ -4,12 +4,14 @@ import { useRoute } from 'vue-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, ListVideo } from '@lucide/vue'
+import { Video, ListVideo, Trash2 } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
 import { usePlaylistItems } from './composables/usePlaylistItems'
 import { usePublishPlaylist } from './composables/usePublishPlaylist'
+import { useDeletePlaylistItem } from './composables/useDeletePlaylistItem'
 import MediaPickerDialog from '@/modules/media/components/MediaPickerDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
+import type { PlaylistItemWithMedia } from '@/types/playlist'
 
 const route = useRoute()
 const companyId = route.params.id as string
@@ -18,6 +20,7 @@ const playlistId = route.params.playlistId as string
 const { playlist, loading: loadingPlaylist, fetchPlaylist } = usePlaylist(playlistId)
 const { items, loading, error, fetchItems } = usePlaylistItems(playlistId)
 const { publishPlaylist, loading: publishing, error: publishError } = usePublishPlaylist()
+const { deletePlaylistItem, loading: removing, error: removeError } = useDeletePlaylistItem()
 
 const mediaOpen = ref(false)
 
@@ -44,6 +47,13 @@ async function onAdded() {
 
 async function onPublish() {
   await publishPlaylist(playlistId)
+  await fetchPlaylist()
+}
+
+async function onRemoveItem(item: PlaylistItemWithMedia) {
+  if (!confirm(`¿Quitar "${fileName(item.media.storage_path)}" de esta playlist? El archivo no se elimina.`)) return
+  await deletePlaylistItem(item.id)
+  await fetchItems()
   await fetchPlaylist()
 }
 </script>
@@ -75,7 +85,9 @@ async function onPublish() {
       </div>
     </header>
 
-    <p v-if="error || publishError" class="text-sm text-destructive">{{ error || publishError }}</p>
+    <p v-if="error || publishError || removeError" class="text-sm text-destructive">
+      {{ error || publishError || removeError }}
+    </p>
 
     <div v-if="loading" class="grid gap-2">
       <Skeleton class="h-20" v-for="i in 3" :key="i" />
@@ -116,6 +128,16 @@ async function onPublish() {
         <span class="text-sm text-muted-foreground shrink-0">
           {{ item.duration_seconds ?? item.media.duration_seconds }}s
         </span>
+
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          class="text-destructive hover:text-destructive shrink-0"
+          :disabled="removing"
+          @click="onRemoveItem(item)"
+        >
+          <Trash2 class="size-4" />
+        </Button>
       </div>
     </div>
   </div>
