@@ -241,6 +241,29 @@ before delete on media
 for each row
 execute function notify_playlists_on_media_delete();
 
+-- Agregar/quitar/reordenar ítems toca playlist_items, no playlists — sin esto
+-- `playlists.updated_at` se queda en la fecha de creación para siempre y no hay
+-- forma de saber si una playlist tiene cambios sin publicar (el panel compara
+-- updated_at > published_at para mostrar "Cambios sin publicar").
+-- Acá sí es correcto colgar de playlist_items: updated_at es justamente el
+-- campo "borrador" (ver sección 5 del CLAUDE.md), tocarlo NO llega al visor.
+create or replace function touch_playlist_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  update playlists
+  set updated_at = now()
+  where id = coalesce(new.playlist_id, old.playlist_id);
+  return coalesce(new, old);
+end;
+$$;
+
+create trigger trg_touch_playlist_updated_at
+after insert or update or delete on playlist_items
+for each row
+execute function touch_playlist_updated_at();
+
 -- =====================================================
 -- ACCESO A STORAGE (bucket `media`, rol authenticated)
 -- El RLS de las tablas de arriba no controla el bucket — storage.objects

@@ -37,6 +37,11 @@ export const superadminRoutes: RouteRecordRaw[] = [
             name: 'admin-playlist-detail',
             component: () => import('@/modules/playlists/PlaylistDetailView.vue'),
           },
+          {
+            path: 'media',
+            name: 'admin-media',
+            component: () => import('@/modules/media/MediaView.vue'),
+          },
         ],
       },
     ],
