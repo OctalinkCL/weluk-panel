@@ -808,6 +808,16 @@ Reglas acordadas, **no romper sin preguntar**:
   ítems, publicar, **eliminar** (con warning si hay pantallas usándola —
   `useDeletePlaylist.getScreensUsing`). Badge de estado: Borrador / Cambios sin
   publicar / Publicada.
+- **Asignar pantallas a una playlist**: dialog "Asignar pantallas"
+  (`AssignScreensDialog.vue`, botón en `PlaylistDetailView`) — lista plana de las
+  pantallas de la company (sin árbol/carpetas, decisión de UX explícita) con
+  "Seleccionar todas" + checkbox por pantalla; `useAssignPlaylistScreens.assignScreens`
+  hace batch-update de `screens.current_playlist_id` (asigna las marcadas, limpia a
+  `null` las que se destildan). El botón "Publicar" de la playlist ahora está
+  deshabilitado (con texto explicando por qué) si no tiene ítems o no tiene ninguna
+  pantalla asignada. **Cierra el ciclo completo del producto** — ya no hace falta SQL
+  manual para esto. Ver gotcha de auto-publish más abajo, sobre por qué este dialog
+  también publica la playlist si estaba en borrador.
 - **Media**: biblioteca por company. Subir (con optimización a WebP), listar, eliminar.
   Vive en dos superficies que comparten el mismo componente (`MediaGrid.vue`): el tab
   Media (administrar) y un dialog picker dentro de la playlist (elegir). Decisión de UX:
@@ -833,20 +843,50 @@ Reglas acordadas, **no romper sin preguntar**:
 
 ### Qué falta (en orden sugerido)
 
-1. **Asignar una playlist a una pantalla** desde el panel —
-   `screens.current_playlist_id` hoy se setea solo por SQL (`EditScreenDialog` solo
-   edita el nombre). Es lo que cierra el ciclo completo del producto.
-2. Reordenar ítems de una playlist y editar duración por ítem (hoy `order_index` se fija
+1. Reordenar ítems de una playlist y editar duración por ítem (hoy `order_index` se fija
    al agregar y no se puede tocar después; la duración solo se muestra, no se edita).
-3. Schedule por horario/fecha (punto 5 de la sección 9).
-4. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
+2. Schedule por horario/fecha (punto 5 de la sección 9).
+3. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
    sección 12) — ahora que el panel de `company_admin` ya existe y tiene usuarios reales
    probándolo, esto pasó de "no aplica todavía" a pendiente real.
-5. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
+4. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
    `published_snapshot jsonb` en `playlists` que se llena al publicar (una columna, no
    una tabla de versiones — respeta el "sin historial" de la sección 5).
+
+### 🐛 Gotcha de RLS: asignar una pantalla a una playlist en borrador rompía el visor (30 julio 2026)
+
+Al construir el dialog "Asignar pantallas" (ver arriba), la primera versión solo hacía
+`UPDATE screens SET current_playlist_id = ...` — sin tocar `published_at`. Resultado:
+si se asignaba una pantalla a una playlist que todavía estaba en borrador, la TV
+mostraba en el overlay/consola `"Cannot coerce the result to a single JSON object"` y
+nunca cargaba contenido.
+
+**Causa:** la policy de `anon` sobre `playlists` (`weluk-schema.sql`) es
+`using (published_at is not null)` — el visor, que opera sin sesión, directamente **no
+puede leer una playlist en borrador**, ni con error explícito: RLS le filtra la fila a
+cero resultados. El visor hace ese fetch con `.single()` (PostgREST), y pedir un solo
+objeto JSON sobre un resultado de 0 filas es exactamente el error `PGRST116` que se ve
+como `"Cannot coerce the result to a single JSON object"`. Mismo patrón de "RLS
+silenciosa" ya documentado en la sección 4, pero del lado del visor en vez del panel.
+
+**Por qué no había aparecido antes:** la asignación históricamente se hacía a mano por
+SQL (sección 6) siempre contra las playlists de prueba sembradas, que ya tenían
+`published_at` seteado desde el principio (sección 5). Recién con este dialog un
+`company_admin`/`superadmin` real pudo asignar una pantalla a una playlist recién
+creada y todavía sin publicar — ahí se disparó.
+
+**Fix aplicado:** `useAssignPlaylistScreens.assignScreens` ahora recibe el
+`published_at` actual de la playlist; si es `null` y se va a asignar al menos una
+pantalla nueva, primero hace `UPDATE playlists SET published_at = now()` (validando con
+`.select()` que RLS no lo haya bloqueado, mismo criterio de la sección 4) y **recién
+después** actualiza `screens.current_playlist_id` — nunca al revés, para no dejar ni un
+instante una pantalla apuntando a algo ilegible. El dialog avisa esto explícitamente:
+"Esta playlist está en borrador — se publica automáticamente al guardar la asignación."
+Decisión de producto (no solo técnica): se evaluó bloquear el guardado hasta publicar a
+mano, pero se eligió auto-publicar porque agrega cero fricción y el dialog ya deja claro
+qué va a pasar.
 
 ### Triggers agregados (ver `weluk-schema.sql`)
 
@@ -889,10 +929,15 @@ empieza a doler, el paso siguiente es el CLI de Supabase con migraciones
 _Última actualización: 30 julio 2026 — sección 14: el panel de `company_admin` ya no es
 un placeholder (rutas propias en `/company/*`, reusa los mismos módulos que `superadmin`,
 RLS de `company_admin` completa para media/playlists/playlist_items/screens/storage),
-más eliminar pantalla y eliminar playlist (con warning de uso). Actualizada la sección 12
-para reflejar que el gotcha de `is_active` sin chequear en RLS ahora es un riesgo real,
-no hipotético. Este documento debe vivir en los 4 repos (o ser referenciado desde ellos)
-y actualizarse a medida que se tomen nuevas decisiones._
+más eliminar pantalla y eliminar playlist (con warning de uso). Agregado el dialog
+"Asignar pantallas" (cierra el ciclo completo del producto, ítem 1 de "Qué falta" pasó a
+"Qué está implementado") y el gotcha que salió de construirlo: asignar una pantalla a
+una playlist en borrador rompía el visor (`Cannot coerce the result to a single JSON
+object`, RLS de `anon` exige `published_at is not null`) — fix aplicado auto-publicando
+la playlist al asignar. Actualizada la sección 12 para reflejar que el gotcha de
+`is_active` sin chequear en RLS ahora es un riesgo real, no hipotético. Este documento
+debe vivir en los 4 repos (o ser referenciado desde ellos) y actualizarse a medida que
+se tomen nuevas decisiones._
 
 ```
 
