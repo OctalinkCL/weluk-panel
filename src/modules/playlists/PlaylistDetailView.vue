@@ -86,13 +86,17 @@ async function onScreensAssigned() {
 
 async function onReorder() {
   await reorderItems(items.value)
+  await fetchPlaylist()
 }
 
 async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
   const value = Math.round(Number((event.target as HTMLInputElement).value))
   if (!Number.isFinite(value) || value <= 0) return
   const ok = await updateDuration(item.id, value)
-  if (ok) item.duration_seconds = value
+  if (ok) {
+    item.duration_seconds = value
+    await fetchPlaylist()
+  }
 }
 </script>
 

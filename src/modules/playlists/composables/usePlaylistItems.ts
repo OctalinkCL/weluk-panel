@@ -8,7 +8,10 @@ export function usePlaylistItems(playlistId: string) {
   const error = ref<string | null>(null)
 
   async function fetchItems() {
-    loading.value = true
+    // Solo mostrar el skeleton en la carga inicial real — en un refetch con la
+    // lista ya poblada (agregar/quitar/reordenar), actualizar en el lugar sin
+    // tapar los items existentes con placeholders.
+    if (items.value.length === 0) loading.value = true
     error.value = null
     const { data, error: err } = await supabase
       .from('playlist_items')
