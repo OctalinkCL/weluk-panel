@@ -587,9 +587,8 @@ acceso y SLA), algo que las herramientas self-serve de terceros no resuelven bie
    pairing, editar nombre, desconectar). Ver sección 14.
 3. ✅ Upload de contenido — implementado en `panel` (subir con optimización a WebP,
    listar, eliminar). Ver sección 14.
-4. ⚠️ CRUD de playlists — **parcial** en `panel`: crear, agregar/quitar ítems, publicar.
-   **Falta reordenar ítems y editar duración por ítem.** El loop simple del lado del
-   visor ya está implementado y probado (ver sección 7).
+4. ✅ CRUD de playlists — implementado en `panel`: crear, agregar/quitar ítems,
+   reordenar (drag and drop), editar duración por ítem, publicar. Ver sección 14.
 5. Schedule (asignar playlist a pantalla por rango horario/fecha) — **pendiente,
    `panel`**. Tampoco existe todavía la asignación simple de una playlist a una
    pantalla (`screens.current_playlist_id` se sigue seteando a mano por SQL).
@@ -808,6 +807,22 @@ Reglas acordadas, **no romper sin preguntar**:
   ítems, publicar, **eliminar** (con warning si hay pantallas usándola —
   `useDeletePlaylist.getScreensUsing`). Badge de estado: Borrador / Cambios sin
   publicar / Publicada.
+- **Reordenar ítems (drag and drop) y editar duración por ítem**: implementado en
+  `PlaylistDetailView.vue` con `vue-draggable-plus` (shadcn-vue no trae componente
+  propio de sortable — es la librería estándar de la comunidad, envuelve SortableJS).
+  Arrastrar reescribe `order_index` de todos los ítems (`useReorderPlaylistItems`); la
+  duración es un `Input` numérico que escribe en `playlist_items.duration_seconds`
+  (`useUpdatePlaylistItem`), el override opcional que ya existía en el schema pero
+  nunca se editaba desde la UI. Al subir un video (`useUploadMedia.ts`), ahora se lee
+  su duración real (`<video>` en memoria + `loadedmetadata`) y se guarda en
+  `media.duration_seconds` en vez del default fijo de 8s que antes se aplicaba también
+  a video (bug/oversight — el comentario del `.sql` siempre dijo "default para
+  imágenes"). Requirió agregar la policy de `UPDATE` de `company_admin` sobre
+  `playlist_items` en `weluk-schema.sql` (no existía, solo select/insert/delete —
+  mismo patrón de "RLS silenciosa" de la sección 4). **Cierra también el hueco del lado
+  del visor**: `weluk-browser` leía `duration_seconds` para video pero no lo usaba (el
+  avance de video solo dependía del evento nativo `@ended`, ignorando cualquier
+  duración configurada) — ya corregido ahí también.
 - **Asignar pantallas a una playlist**: dialog "Asignar pantallas"
   (`AssignScreensDialog.vue`, botón en `PlaylistDetailView`) — lista plana de las
   pantallas de la company (sin árbol/carpetas, decisión de UX explícita) con
@@ -843,13 +858,11 @@ Reglas acordadas, **no romper sin preguntar**:
 
 ### Qué falta (en orden sugerido)
 
-1. Reordenar ítems de una playlist y editar duración por ítem (hoy `order_index` se fija
-   al agregar y no se puede tocar después; la duración solo se muestra, no se edita).
-2. Schedule por horario/fecha (punto 5 de la sección 9).
-3. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
+1. Schedule por horario/fecha (punto 5 de la sección 9).
+2. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
    sección 12) — ahora que el panel de `company_admin` ya existe y tiene usuarios reales
    probándolo, esto pasó de "no aplica todavía" a pendiente real.
-4. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
+3. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
    `published_snapshot jsonb` en `playlists` que se llena al publicar (una columna, no
@@ -937,7 +950,17 @@ object`, RLS de `anon` exige `published_at is not null`) — fix aplicado auto-p
 la playlist al asignar. Actualizada la sección 12 para reflejar que el gotcha de
 `is_active` sin chequear en RLS ahora es un riesgo real, no hipotético. Este documento
 debe vivir en los 4 repos (o ser referenciado desde ellos) y actualizarse a medida que
-se tomen nuevas decisiones._
+se tomen nuevas decisiones.
+
+**Actualización 30 julio 2026 (2):** CRUD de playlists completo — reordenar ítems por
+drag and drop (`vue-draggable-plus`) y editar duración por ítem (`playlist_items.duration_seconds`),
+más lectura automática de la duración real al subir un video (antes usaba el default fijo
+de 8s de `media.duration_seconds`, pensado solo para imágenes). Requirió agregar la policy
+de `UPDATE` de `company_admin` sobre `playlist_items` en `weluk-schema.sql` (no existía).
+También se corrigió `weluk-browser`: el visor leía la duración configurada para video pero
+nunca la aplicaba (el avance dependía solo del evento `@ended`, ignorando cualquier corte
+manual) — confirmado funcionando en el visor real. El ítem 1 de "Qué falta" de la sección 14
+pasó a "Qué está implementado"._
 
 ```
 

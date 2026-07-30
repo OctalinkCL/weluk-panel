@@ -173,7 +173,10 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
 
         <div class="flex-1 min-w-0 leading-tight">
           <p class="text-sm font-medium truncate">{{ fileName(item.media.storage_path) }}</p>
-          <p class="text-xs text-muted-foreground">{{ item.media.type === 'image' ? 'Imagen' : 'Video' }}</p>
+          <p class="text-xs text-muted-foreground">
+            {{ item.media.type === 'image' ? 'Imagen' : 'Video' }}
+            <template v-if="item.media.type === 'video'">· Original: {{ item.media.duration_seconds }}s</template>
+          </p>
         </div>
 
         <div class="flex items-center gap-1 shrink-0">
