@@ -673,18 +673,8 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 - Checklist de instalación por pantalla — nuevo, sale de las pruebas del 28 julio:
   desactivar el apagado automático del TV (ver sección 7), confirmar que el `panel` sepa
   qué modelos de TV quedan fuera del piso soportado por navegador (sección 3).
-- **Pendiente en `panel`, ahora con riesgo real (no solo teórico):** `companies.is_active`
-  (agregado al construir el CRUD de `companies`, ver `weluk-schema.sql`) hoy solo
-  controla si un `company_admin` puede operar desde la UI del panel — **las policies de
-  RLS de `media`, `playlists`, `playlist_items`, `screens` y `storage.objects` para
-  `company_admin` (ya implementadas, ver sección 14) todavía no chequean `is_active`,
-  solo `company_id = auth_company_id()`.** Sin ese chequeo, una company deshabilitada
-  sigue teniendo acceso real a sus datos vía API (y ahora vía el panel real de
-  `company_admin`, que ya existe) aunque el panel superadmin le muestre un
-  overlay/bloqueo — el overlay es solo mensaje, no seguridad. Antes esto era un riesgo
-  hipotético porque no había UI de `company_admin` para probarlo; ahora sí la hay, así
-  que agregar el chequeo de `is_active` a cada policy existente es el siguiente paso de
-  seguridad pendiente (ver "Qué falta" ítem 4 en sección 14).
+- ~~`companies.is_active` sin chequear en RLS~~ — **resuelto (30 julio 2026)**, ver
+  sección 14 (`auth_active_company_id()` + overlay en `AdminLayout.vue`).
 
 ---
 
@@ -853,15 +843,35 @@ Reglas acordadas, **no romper sin preguntar**:
   `roles: Role[]` en cada entrada). Policies de RLS de `company_admin` para `media`,
   `playlists`, `playlist_items`, `screens` y `storage.objects` ya están en
   `weluk-schema.sql` (bloques "company_admin ve/crea/actualiza/elimina...") — ver el
-  gotcha de `is_active` sin chequear en sección 12, que ahora es un riesgo real y no
-  solo teórico porque esta UI ya existe.
+  gotcha de `is_active` sin chequear en sección 12 — **ya resuelto**, ver más abajo.
+
+### ✅ `is_active` ahora sí se chequea en RLS (30 julio 2026)
+
+En vez de tocar cada policy de `company_admin` una por una, se agregó una función helper
+nueva, `auth_active_company_id()` — igual a `auth_company_id()` pero devuelve `NULL` si
+`companies.is_active = false`. Se reemplazó `auth_company_id()` por esta nueva función en
+**todas** las policies de contenido de `company_admin` (`media`, `playlists`,
+`playlist_items`, `screens`, `storage.objects`) — deshabilitar una company corta el acceso
+real en un solo lugar (la función), sin mantener 18 policies sincronizadas a mano.
+
+**A propósito, la policy de `companies` no cambió** (sigue usando `auth_company_id()` sin
+chequear `is_active`): si también dependiera de la versión "activa", un `company_admin`
+deshabilitado no podría ni leer su propia fila de `companies` para saber que fue
+deshabilitado, y el panel no tendría cómo explicarle qué pasó.
+
+**UI agregada:** `AdminLayout.vue` (compartido por `superadmin` y `company_admin`) ahora
+chequea, solo cuando `role === 'company_admin'`, el `is_active` de su propia company
+(`useCompanyStatus.ts`) y muestra un overlay de pantalla completa ("Cuenta deshabilitada")
+si está apagada. **Importante: este overlay es solo un aviso, no la seguridad real** — si
+alguien lo saca del DOM con el inspector del navegador, el resto de la UI sigue sin datos
+igual, porque las policies de RLS (vía `auth_active_company_id()`) devuelven cero filas
+para esa company sin importar qué muestre el frontend. Un `superadmin` navegando el
+detalle de una company deshabilitada (para reactivarla) nunca ve este overlay — el chequeo
+es explícitamente solo para `company_admin` viendo su propia company.
 
 ### Qué falta (en orden sugerido)
 
 1. Schedule por horario/fecha (punto 5 de la sección 9).
-2. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
-   sección 12) — ahora que el panel de `company_admin` ya existe y tiene usuarios reales
-   probándolo, esto pasó de "no aplica todavía" a pendiente real.
 3. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
@@ -929,6 +939,42 @@ pero en Storage. Las tres policies (`insert`, `select`, `delete`) están en el `
 No confundir con el RLS de la tabla `media`: son dos sistemas separados. Que la fila se
 pueda borrar no dice nada sobre el archivo.
 
+### 🔒 Fix de seguridad: `screens` tenía UPDATE totalmente abierto para `anon` (30 julio 2026)
+
+Un primer análisis de seguridad pre-lanzamiento (repasando `weluk-schema.sql` completo)
+encontró que las policies de `anon` sobre `screens` y `pairing_codes` usaban `using (true)`
+sin ningún filtro por fila — comentario original en el `.sql`: "no hay forma de restringir
+por fila sin auth real aquí". Como la `anon key` es pública por diseño (va embebida en el
+bundle de `weluk-browser`, cualquiera puede extraerla), esto significaba que **cualquier
+persona en internet, sin cuenta ni login, podía**:
+
+- Leer la tabla completa de `screens` (nombres, `device_uuid`, playlist asignada) y de
+  `pairing_codes` (incluidos códigos pendientes) de **todas** las companies, no solo la
+  propia.
+- **Modificar cualquier pantalla de cualquier company** — cambiarle la playlist o
+  desconectarla — con un `UPDATE` directo a la API pública de Supabase, sin filtro de fila
+  (`using (true) with check (true)`), potencialmente afectando **todas las filas a la vez**
+  en un solo request si no se pasaba ningún filtro.
+
+**Fix aplicado (lo urgente, no todo):** se priorizó cerrar la escritura sin filtro, que era
+el riesgo real de defacement/DoS sobre pantallas de clientes reales. Se retiró el `UPDATE`
+directo de `anon` sobre `screens` y se reemplazó por la función `disconnect_own_screen(p_device_uuid uuid)`
+(`security definer`, `returns setof screens`) — solo puede desconectar la fila cuyo
+`device_uuid` coincide con el parámetro, nunca otra columna ni otra fila. Requirió actualizar
+`weluk-browser` (`Overlay.vue`, botón "Disconnect this screen") para llamar
+`supabase.rpc('disconnect_own_screen', { p_device_uuid })` en vez del `UPDATE` directo —
+ya confirmado funcionando en el visor real. También se acotó la policy de `SELECT` de
+`pairing_codes` para `anon` a `status = 'pending' and expires_at > now()` (antes exponía
+códigos ya reclamados/vencidos de cualquier company).
+
+**Riesgo aceptado, no cerrado todavía:** el `SELECT` de `anon` sobre `screens` sigue abierto
+(`using (true)`) — cualquiera puede seguir *leyendo* la lista de pantallas de todas las
+companies (sin poder escribir nada). Cerrarlo del todo requiere darle identidad real a cada
+dispositivo (ej. Supabase anonymous auth), que es un cambio de arquitectura más grande y no
+entra en el alcance de este fix puntual. Decisión consciente: para el nivel de dato que
+maneja esta plataforma (nombres de pantalla, no información confidencial), el riesgo
+residual es aceptable para el MVP; revisar si el negocio escala a clientes que exijan más.
+
 ### Recordatorio: el `.sql` no se aplica solo
 
 `weluk-schema.sql` es un archivo de texto, nadie lo ejecuta. Cada cambio hay que correrlo
@@ -960,7 +1006,22 @@ de `UPDATE` de `company_admin` sobre `playlist_items` en `weluk-schema.sql` (no 
 También se corrigió `weluk-browser`: el visor leía la duración configurada para video pero
 nunca la aplicaba (el avance dependía solo del evento `@ended`, ignorando cualquier corte
 manual) — confirmado funcionando en el visor real. El ítem 1 de "Qué falta" de la sección 14
-pasó a "Qué está implementado"._
+pasó a "Qué está implementado".
+
+**Actualización 30 julio 2026 (3) — primer análisis de seguridad pre-lanzamiento:** encontrado
+y corregido un hallazgo crítico — `screens` tenía `UPDATE` totalmente abierto para el rol
+`anon` (sin filtro por fila), permitiendo modificar la playlist o desconectar la pantalla de
+cualquier company sin login. Reemplazado por la función `disconnect_own_screen()` (ver
+sección 14). Acotada también la lectura de `pairing_codes` para `anon` a solo códigos
+pendientes y vigentes. Riesgo aceptado y documentado: el `SELECT` de `anon` sobre `screens`
+sigue abierto (de solo lectura, cerrarlo requiere darle identidad real a cada dispositivo).
+
+**Actualización 30 julio 2026 (4):** cerrado también el chequeo de `is_active` en RLS de
+`company_admin` (sección 12) — función `auth_active_company_id()` centraliza el corte de
+acceso en un solo lugar en vez de tocar 18 policies sueltas, más un overlay de "Cuenta
+deshabilitada" en `AdminLayout.vue` (aviso visual, la seguridad real la hace RLS). SQL
+corrido y confirmado en el proyecto Supabase real (única company existente, activa, sin
+impacto). Con esto, los dos pendientes de seguridad de la sección 12 quedan resueltos._
 
 ```
 

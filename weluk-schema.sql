@@ -142,6 +142,28 @@ as $$
   )
 $$;
 
+-- Función helper: como auth_company_id(), pero devuelve NULL si la company está
+-- deshabilitada (is_active = false). Se usa en TODAS las policies de contenido
+-- de company_admin (media, playlists, playlist_items, screens, storage) — así,
+-- deshabilitar una company corta el acceso real en un solo lugar, sin tener que
+-- tocar cada policy una por una. OJO: la policy de `companies` (ver más abajo)
+-- sigue usando auth_company_id() (la versión sin chequear is_active) a propósito
+-- — el panel de company_admin necesita poder leer su propia fila de `companies`
+-- (incluido is_active = false) para poder mostrar el aviso de "cuenta
+-- deshabilitada"; si también se cortara ese SELECT, el frontend no tendría cómo
+-- saber por qué dejó de ver sus datos.
+create or replace function auth_active_company_id()
+returns uuid
+language sql
+security definer
+stable
+as $$
+  select p.company_id
+  from profiles p
+  join companies c on c.id = p.company_id
+  where p.id = auth.uid() and c.is_active = true
+$$;
+
 -- --- Policies: companies ---
 create policy "superadmin ve todas las companies"
   on companies for select
@@ -178,15 +200,15 @@ create policy "superadmin acceso total a media"
 
 create policy "company_admin ve su media"
   on media for select
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "company_admin sube su media"
   on media for insert
-  with check (company_id = auth_company_id());
+  with check (company_id = auth_active_company_id());
 
 create policy "company_admin elimina su media"
   on media for delete
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "superadmin acceso total a playlists"
   on playlists for all
@@ -194,20 +216,20 @@ create policy "superadmin acceso total a playlists"
 
 create policy "company_admin ve sus playlists"
   on playlists for select
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "company_admin crea sus playlists"
   on playlists for insert
-  with check (company_id = auth_company_id());
+  with check (company_id = auth_active_company_id());
 
 create policy "company_admin actualiza sus playlists"
   on playlists for update
-  using (company_id = auth_company_id())
-  with check (company_id = auth_company_id());
+  using (company_id = auth_active_company_id())
+  with check (company_id = auth_active_company_id());
 
 create policy "company_admin elimina sus playlists"
   on playlists for delete
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "superadmin acceso total a playlist_items"
   on playlist_items for all
@@ -216,23 +238,23 @@ create policy "superadmin acceso total a playlist_items"
 -- playlist_items no tiene company_id propia — se scopea vía la playlist dueña.
 create policy "company_admin ve items de sus playlists"
   on playlist_items for select
-  using (playlist_id in (select id from playlists where company_id = auth_company_id()));
+  using (playlist_id in (select id from playlists where company_id = auth_active_company_id()));
 
 create policy "company_admin agrega items a sus playlists"
   on playlist_items for insert
-  with check (playlist_id in (select id from playlists where company_id = auth_company_id()));
+  with check (playlist_id in (select id from playlists where company_id = auth_active_company_id()));
 
 create policy "company_admin quita items de sus playlists"
   on playlist_items for delete
-  using (playlist_id in (select id from playlists where company_id = auth_company_id()));
+  using (playlist_id in (select id from playlists where company_id = auth_active_company_id()));
 
 -- Necesaria para reordenar (order_index) y editar duración (duration_seconds)
 -- desde el panel. No existía porque hasta ahora playlist_items solo se
 -- insertaba/borraba, nunca se actualizaba.
 create policy "company_admin actualiza items de sus playlists"
   on playlist_items for update
-  using (playlist_id in (select id from playlists where company_id = auth_company_id()))
-  with check (playlist_id in (select id from playlists where company_id = auth_company_id()));
+  using (playlist_id in (select id from playlists where company_id = auth_active_company_id()))
+  with check (playlist_id in (select id from playlists where company_id = auth_active_company_id()));
 
 create policy "superadmin acceso total a screens"
   on screens for all
@@ -240,22 +262,22 @@ create policy "superadmin acceso total a screens"
 
 create policy "company_admin ve sus screens"
   on screens for select
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "company_admin administra sus screens (insert)"
   on screens for insert
-  with check (company_id = auth_company_id());
+  with check (company_id = auth_active_company_id());
 
 create policy "company_admin administra sus screens (update)"
   on screens for update
-  using (company_id = auth_company_id())
-  with check (company_id = auth_company_id());
+  using (company_id = auth_active_company_id())
+  with check (company_id = auth_active_company_id());
 
 -- Elimina la fila por completo (no solo desconectar) para liberar el device_uuid
 -- y que otra company pueda vincularlo desde cero — ver gotcha de RLS en sección 14.
 create policy "company_admin elimina sus screens"
   on screens for delete
-  using (company_id = auth_company_id());
+  using (company_id = auth_active_company_id());
 
 create policy "superadmin acceso total a pairing_codes"
   on pairing_codes for all
@@ -366,17 +388,17 @@ create policy "superadmin lee media"
 create policy "company_admin sube archivos a su carpeta"
   on storage.objects for insert
   to authenticated
-  with check (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
+  with check (bucket_id = 'media' and (storage.foldername(name))[1] = auth_active_company_id()::text);
 
 create policy "company_admin lee archivos de su carpeta"
   on storage.objects for select
   to authenticated
-  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
+  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_active_company_id()::text);
 
 create policy "company_admin borra archivos de su carpeta"
   on storage.objects for delete
   to authenticated
-  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
+  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_active_company_id()::text);
 
 -- =====================================================
 -- REALTIME — habilitar en las tablas que escucha el visor
@@ -405,34 +427,50 @@ create policy "anon puede crear su codigo de pairing"
   to anon
   with check (true);
 
-create policy "anon puede leer/consultar su propio codigo"
+-- Antes era `using (true)`: cualquiera con la anon key (pública, va en el bundle
+-- del visor) podía leer TODOS los códigos de pairing de TODAS las companies, no
+-- solo los pendientes del propio dispositivo. Acotado a lo mínimo necesario para
+-- que el flujo de pairing funcione (Pairing.vue ya filtra por status/expiración
+-- del lado del cliente; esto lo hace innegociable también del lado del servidor).
+create policy "anon puede leer codigos pendientes y vigentes"
   on pairing_codes for select
   to anon
-  using (true);
+  using (status = 'pending' and expires_at > now());
 
 -- --- Policies: screens (anon) ---
 -- El visor solo necesita leer SU PROPIA fila, filtrando por device_uuid
 -- desde el cliente (no hay forma de restringir por fila sin auth real aquí,
--- así que el filtro efectivo lo hace el visor pidiendo su propio device_uuid;
--- se restringen las columnas sensibles a nivel de vista si se requiere más adelante)
+-- así que el filtro efectivo lo hace el visor pidiendo su propio device_uuid).
+-- Riesgo aceptado y documentado: cualquiera con la anon key puede listar todas
+-- las pantallas de todas las companies (solo lectura). Cerrarlo del todo requiere
+-- darle identidad real a cada dispositivo (ej. Supabase anonymous auth) — fuera
+-- de alcance de este fix puntual; el riesgo real (poder ESCRIBIR sin filtro) es
+-- el que se cierra abajo.
 create policy "anon puede leer screens por device_uuid"
   on screens for select
   to anon
   using (true);
 
--- El visor necesita poder desconectarse a sí mismo (botón "Disconnect" del overlay
--- de diagnóstico, sección 9 del CLAUDE.md) — mismo problema de no poder restringir
--- por fila sin auth real; se acepta el mismo tradeoff que en las policies de arriba.
--- OJO: una policy de UPDATE necesita SÍ o SÍ el `with check` además del `using` —
--- sin él, PostgREST responde 204 pero afecta 0 filas (el UPDATE se descarta en
--- silencio), lo que parece éxito desde el cliente pero no cambia nada en la base.
-grant update on screens to anon;
+-- Antes: `grant update on screens to anon` + policy `using (true) with check (true)`.
+-- Eso permitía a CUALQUIERA con la anon key modificar CUALQUIER pantalla de
+-- CUALQUIER company (incluso todas a la vez en un solo request sin filtro) —
+-- podían cambiarle la playlist a un cliente o apagarle la pantalla sin login.
+-- Fix: se retira el UPDATE directo de la tabla y se reemplaza por esta función,
+-- que solo puede hacer UNA cosa (desconectar) y solo sobre la fila cuyo
+-- device_uuid coincide con el parámetro — no hay forma de que afecte otra fila
+-- ni de tocar otra columna.
+create or replace function disconnect_own_screen(p_device_uuid uuid)
+returns setof screens
+language sql
+security definer
+as $$
+  update screens
+  set status = 'disconnected', current_playlist_id = null
+  where device_uuid = p_device_uuid
+  returning *;
+$$;
 
-create policy "anon puede desconectar su propia pantalla"
-  on screens for update
-  to anon
-  using (true)
-  with check (true);
+grant execute on function disconnect_own_screen(uuid) to anon;
 
 -- --- Policies: playlists, playlist_items, media (anon, solo lectura) ---
 create policy "anon puede leer playlists publicadas"

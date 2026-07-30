@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCompanyStatus } from '@/modules/companies/composables/useCompanyStatus'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { isActive, checked, fetchStatus } = useCompanyStatus()
+
+// Solo aplica a company_admin viendo SU PROPIA company — un superadmin navegando
+// el detalle de una company deshabilitada (para reactivarla) nunca debe bloquearse.
+onMounted(() => {
+  if (authStore.role === 'company_admin' && authStore.profile?.company_id) {
+    fetchStatus(authStore.profile.company_id)
+  }
+})
 
 async function onLogout() {
   await authStore.logout()
@@ -27,4 +38,22 @@ async function onLogout() {
       </div>
     </SidebarInset>
   </SidebarProvider>
+
+  <!--
+    Aviso, no la seguridad real: si esto se saca del DOM con el inspector, el
+    resto de la app sigue vacía igual — las policies de RLS (auth_active_company_id())
+    devuelven cero filas para una company deshabilitada, con o sin este overlay.
+  -->
+  <div
+    v-if="authStore.role === 'company_admin' && checked && !isActive"
+    class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6"
+  >
+    <div class="max-w-sm text-center grid gap-3">
+      <h2 class="text-lg font-medium">Cuenta deshabilitada</h2>
+      <p class="text-sm text-muted-foreground">
+        Tu empresa fue deshabilitada. Contacta a soporte si crees que es un error.
+      </p>
+      <Button variant="outline" @click="onLogout">Cerrar sesión</Button>
+    </div>
+  </div>
 </template>
