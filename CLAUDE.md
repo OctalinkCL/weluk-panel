@@ -583,13 +583,16 @@ acceso y SLA), algo que las herramientas self-serve de terceros no resuelven bie
 
 1. ✅ Visor + pairing (código corto, ver sección 6) — implementado y validado en
    `visor-web` con 3 dispositivos reales simultáneos (2 Smart TVs + notebook)
-2. CRUD de pantallas — **pendiente, vive en el `panel`** (no existe todavía)
-3. Upload de contenido (imagen y video, sin editor de diseño online) — **pendiente,
-   `panel`**
-4. CRUD de playlists (orden, duración por ítem, loop simple) — **pendiente, `panel`**;
-   el loop simple del lado del visor ya está implementado y probado (ver sección 7)
+2. ✅ CRUD de pantallas — implementado en `panel` (listar, vincular por código de
+   pairing, editar nombre, desconectar). Ver sección 14.
+3. ✅ Upload de contenido — implementado en `panel` (subir con optimización a WebP,
+   listar, eliminar). Ver sección 14.
+4. ⚠️ CRUD de playlists — **parcial** en `panel`: crear, agregar/quitar ítems, publicar.
+   **Falta reordenar ítems y editar duración por ítem.** El loop simple del lado del
+   visor ya está implementado y probado (ver sección 7).
 5. Schedule (asignar playlist a pantalla por rango horario/fecha) — **pendiente,
-   `panel`**
+   `panel`**. Tampoco existe todavía la asignación simple de una playlist a una
+   pantalla (`screens.current_playlist_id` se sigue seteando a mano por SQL).
 6. ✅ Sync al player (Realtime + draft/publish, ver secciones 5 y 6) — implementado y
    validado: cambio de playlist y republicación de contenido, con aislamiento
    confirmado entre pantallas concurrentes
@@ -713,10 +716,149 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 
 ---
 
-_Última actualización: 28 julio 2026 — validación en hardware real del incidente de
-egress, bug de reproducción, huérfanos en disco, y decisión de hardware con APK
-preinstalada (ver sección 7). Este documento debe vivir en los 4 repos (o ser
-referenciado desde ellos) y actualizarse a medida que se tomen nuevas decisiones._
+## 14. Estado y convenciones del `panel` (29 julio 2026)
+
+> Sección específica del repo `weluk-panel`. Leer antes de retomar el desarrollo,
+> sobre todo al cambiar de máquina o de sesión.
+
+### Arranque en una máquina nueva
+
+1. `npm install`
+2. **Crear `.env` a mano** — está en `.gitignore`, no viaja con el repo. Copiar
+   `.env.example` y llenar con las credenciales del proyecto Supabase real
+   (Project Settings → API):
+   ```
+   VITE_SUPABASE_URL=
+   VITE_SUPABASE_ANON_KEY=
+   ```
+   Sin esto la app **no arranca**: `createClient('', '')` lanza
+   `"supabaseUrl is required."` y queda la pantalla en blanco.
+3. `npm run dev`
+4. Login con un usuario que tenga fila en `profiles` con `role = 'superadmin'`.
+
+### El primer superadmin se crea a mano (huevo y gallina)
+
+`supabase/functions/create-user` exige que quien llama ya sea superadmin, así que el
+primero se crea manualmente: Auth → Add user en Studio, copiar el UID, y luego:
+
+```sql
+insert into profiles (id, company_id, role, full_name)
+values ('<uid-de-auth>', null, 'superadmin', 'Nombre');
+```
+
+`company_id = null` es obligatorio para superadmin (es la señal que usa
+`is_superadmin()` y el resto de las policies).
+
+### Estructura y convenciones
+
+Módulos verticales, misma forma que `client-movefactory-webapp` (repo hermano del
+equipo, referencia de estructura):
+
+```
+src/
+  modules/<feature>/
+    FeatureView.vue          # página
+    components/              # solo de este módulo
+    composables/useX.ts      # acceso a datos + estado
+    lib/                     # helpers del módulo
+  layouts/                   # AuthLayout, AdminLayout, CompanyDetailLayout
+  router/                    # index + auth.routes + superadmin.routes + guards + role-homes
+  stores/auth.ts             # user, profile, role, isAuthenticated
+  types/                     # un archivo por entidad, derivado de lib/database.types.ts
+```
+
+Reglas acordadas, **no romper sin preguntar**:
+
+- **Solo componentes de shadcn-vue.** Nada de inventar componentes propios ni instalar
+  librerías de UI. Si falta algo, se pregunta antes.
+- **Ninguna dependencia nueva sin avisar.** Ojo: `npx shadcn-vue add <x>` puede meter
+  paquetes npm en silencio (`add table` intentó instalar `@tanstack/vue-table`, que no
+  usábamos y hubo que sacar). **Revisar el diff de `package.json` después de cada
+  `shadcn-vue add`.**
+- **Los tipos se derivan de `src/lib/database.types.ts`**, no se escriben a mano — así
+  no se desincronizan del `.sql`. Cuando hay un `check constraint` de texto (roles,
+  status, type), se hace narrowing con `Omit<..., 'campo'> & { campo: Union }`.
+- **Toda escritura encadena `.select()` y valida `data.length > 0`.** Si es 0, RLS
+  bloqueó en silencio — tratarlo como error (ver gotcha de la sección 4).
+- Verificación antes de dar algo por listo: `npx vue-tsc --build` limpio + probar el
+  flujo real en el navegador contra Supabase.
+
+### Qué está implementado
+
+- **Auth**: login/logout real, `stores/auth.ts`, guard por rol, redirección por
+  `role-homes`. Solo `superadmin` tiene home mapeado; `company_admin` todavía no
+  tiene panel propio.
+- **Companies**: listar, crear, editar nombre, habilitar/deshabilitar (`is_active`).
+- **Company detail** (`/admin/companies/:id`) con tabs: **Screens | Playlists | Media**.
+- **Screens**: listar, vincular por código de pairing (reemplaza el SQL manual de la
+  sección 6), editar nombre, desconectar (hace el mismo `UPDATE` que el overlay del
+  visor, así que la TV reacciona igual y vuelve a pairing).
+- **Playlists**: listar, crear (navega directo al detalle), ver ítems, agregar/quitar
+  ítems, publicar. Badge de estado: Borrador / Cambios sin publicar / Publicada.
+- **Media**: biblioteca por company. Subir (con optimización a WebP), listar, eliminar.
+  Vive en dos superficies que comparten el mismo componente (`MediaGrid.vue`): el tab
+  Media (administrar) y un dialog picker dentro de la playlist (elegir). Decisión de UX:
+  ambas superficies tienen **las mismas capacidades** (subir y borrar disponibles en las
+  dos); el modo picker solo *suma* la acción de agregar — mismo criterio que la Media
+  Library de WordPress.
+
+### Qué falta (en orden sugerido)
+
+1. **Asignar una playlist a una pantalla** desde el panel —
+   `screens.current_playlist_id` hoy se setea solo por SQL. Es lo que cierra el ciclo
+   completo del producto.
+2. Reordenar ítems de una playlist y editar duración por ítem.
+3. Schedule por horario/fecha (punto 5 de la sección 9).
+4. Panel de `company_admin` (hoy solo existe `superadmin`).
+5. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
+   imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
+   ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
+   `published_snapshot jsonb` en `playlists` que se llena al publicar (una columna, no
+   una tabla de versiones — respeta el "sin historial" de la sección 5).
+
+### Triggers agregados (ver `weluk-schema.sql`)
+
+- `trg_notify_playlists_on_media_delete` — **BEFORE DELETE on `media`**. Al borrar un
+  archivo en uso, republica (`published_at = now()`) las playlists **ya publicadas** que
+  lo usaban, para que las TVs se enteren y descarten el ítem. Sin esto la pantalla sigue
+  mostrando un slide borrado (el cascade toca `playlist_items`, no `playlists`, así que
+  el canal Realtime del visor nunca se entera). **Nunca colgar esto de
+  `playlist_items`**: se dispararía al editar una playlist en borrador y publicaría
+  cambios a medias.
+- `trg_touch_playlist_updated_at` — **AFTER INSERT/UPDATE/DELETE on `playlist_items`**.
+  Mueve `playlists.updated_at`, que es lo que permite detectar "cambios sin publicar"
+  (`updated_at > published_at`). Acá sí es correcto colgar de `playlist_items`, porque
+  `updated_at` es el campo de borrador y no llega al visor.
+- **Quirk cosmético conocido:** al borrar un media de una playlist publicada, los dos
+  triggers se encadenan y el badge queda en "Cambios sin publicar" aunque la TV ya esté
+  al día. La pantalla muestra lo correcto; solo el badge es pesimista.
+
+### Gotcha de Storage: `DELETE` necesita también policy de `SELECT`
+
+Borrar un archivo del bucket falla **en silencio** (HTTP 200 con `[]`, sin error) si
+`authenticated` no tiene policy de `SELECT` sobre `storage.objects`: el endpoint primero
+*busca* los objetos que coinciden (esa búsqueda pasa por RLS) y borra lo que encontró;
+sin `SELECT` no encuentra nada. Es el mismo patrón de RLS silenciosa de la sección 4,
+pero en Storage. Las tres policies (`insert`, `select`, `delete`) están en el `.sql`.
+
+No confundir con el RLS de la tabla `media`: son dos sistemas separados. Que la fila se
+pueda borrar no dice nada sobre el archivo.
+
+### Recordatorio: el `.sql` no se aplica solo
+
+`weluk-schema.sql` es un archivo de texto, nadie lo ejecuta. Cada cambio hay que correrlo
+a mano en el SQL Editor de Supabase. Además está escrito como script de creación desde
+cero, así que **no se puede re-ejecutar completo** contra una base ya poblada. Si esto
+empieza a doler, el paso siguiente es el CLI de Supabase con migraciones
+(`supabase migration new` + `supabase db push`) — todavía no está configurado.
+
+---
+
+_Última actualización: 29 julio 2026 — sección 14 con el estado real del `panel`
+(auth, companies, screens, playlists, media), sus convenciones, triggers y gotchas;
+actualizada la sección 9, que daba el panel por inexistente. Este documento debe vivir
+en los 4 repos (o ser referenciado desde ellos) y actualizarse a medida que se tomen
+nuevas decisiones._
 
 ```
 
