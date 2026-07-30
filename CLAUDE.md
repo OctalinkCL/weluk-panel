@@ -674,16 +674,18 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 - Checklist de instalación por pantalla — nuevo, sale de las pruebas del 28 julio:
   desactivar el apagado automático del TV (ver sección 7), confirmar que el `panel` sepa
   qué modelos de TV quedan fuera del piso soportado por navegador (sección 3).
-- **Pendiente en `panel`:** `companies.is_active` (agregado al construir el CRUD de
-  `companies`, ver `weluk-schema.sql`) hoy solo controla si un `company_admin` puede
-  operar desde la UI del panel — **las policies de RLS de `media`, `playlists`,
-  `playlist_items` y `screens` para `company_admin` todavía no chequean `is_active`,
+- **Pendiente en `panel`, ahora con riesgo real (no solo teórico):** `companies.is_active`
+  (agregado al construir el CRUD de `companies`, ver `weluk-schema.sql`) hoy solo
+  controla si un `company_admin` puede operar desde la UI del panel — **las policies de
+  RLS de `media`, `playlists`, `playlist_items`, `screens` y `storage.objects` para
+  `company_admin` (ya implementadas, ver sección 14) todavía no chequean `is_active`,
   solo `company_id = auth_company_id()`.** Sin ese chequeo, una company deshabilitada
-  sigue teniendo acceso real a sus datos vía API aunque el panel le muestre un
-  overlay/bloqueo — el overlay es solo mensaje, no seguridad. Agregar el chequeo de
-  `is_active` a cada policy en el mismo momento en que se construya el módulo dueño de
-  esa tabla (`screens`, después `playlists`/`media`), no antes — hoy no hay
-  `company_admin` real ni UI para probarlo.
+  sigue teniendo acceso real a sus datos vía API (y ahora vía el panel real de
+  `company_admin`, que ya existe) aunque el panel superadmin le muestre un
+  overlay/bloqueo — el overlay es solo mensaje, no seguridad. Antes esto era un riesgo
+  hipotético porque no había UI de `company_admin` para probarlo; ahora sí la hay, así
+  que agregar el chequeo de `is_active` a cada policy existente es el siguiente paso de
+  seguridad pendiente (ver "Qué falta" ítem 4 en sección 14).
 
 ---
 
@@ -787,11 +789,10 @@ Reglas acordadas, **no romper sin preguntar**:
 ### Qué está implementado
 
 - **Auth**: login/logout real, `stores/auth.ts`, guard por rol, redirección por
-  `role-homes`. `company_admin` ya tiene un home mapeado (`company-home`), pero es
-  solo un placeholder ("Bienvenido a Weluk / tu panel está en construcción") — el
-  panel real de `company_admin` sigue sin existir (ver "Qué falta").
+  `role-homes` (`superadmin` → `admin-companies`, `company_admin` → `company-screens`).
 - **Companies**: listar, crear, editar nombre, habilitar/deshabilitar (`is_active`).
-- **Company detail** (`/admin/companies/:id`) con tabs: **Screens | Playlists | Media | Usuarios**.
+- **Company detail** (`/admin/companies/:id`, solo `superadmin`) con tabs: **Screens |
+  Playlists | Media | Usuarios**.
 - **Usuarios**: invitar `company_admin` por email desde el tab Usuarios de una company
   (`supabase/functions/invite-user`, primer uso de `supabase.functions.invoke` en el
   panel). El usuario define su propia contraseña vía el link del mail
@@ -799,26 +800,48 @@ Reglas acordadas, **no romper sin preguntar**:
   editar/eliminar usuarios (la tabla `profiles` hoy solo tiene policies de `select`,
   ver sección 12).
 - **Screens**: listar, vincular por código de pairing (reemplaza el SQL manual de la
-  sección 6), editar nombre, desconectar (hace el mismo `UPDATE` que el overlay del
-  visor, así que la TV reacciona igual y vuelve a pairing).
+  sección 6), editar nombre, desconectar, **eliminar** (hace el mismo `UPDATE`/`DELETE`
+  que el overlay del visor, así que la TV reacciona igual y vuelve a pairing; al
+  eliminar, otra company puede volver a vincular ese `device_uuid`). Lista también
+  la playlist asignada a cada pantalla (solo lectura, ver "Qué falta" ítem 1).
 - **Playlists**: listar, crear (navega directo al detalle), ver ítems, agregar/quitar
-  ítems, publicar. Badge de estado: Borrador / Cambios sin publicar / Publicada.
+  ítems, publicar, **eliminar** (con warning si hay pantallas usándola —
+  `useDeletePlaylist.getScreensUsing`). Badge de estado: Borrador / Cambios sin
+  publicar / Publicada.
 - **Media**: biblioteca por company. Subir (con optimización a WebP), listar, eliminar.
   Vive en dos superficies que comparten el mismo componente (`MediaGrid.vue`): el tab
   Media (administrar) y un dialog picker dentro de la playlist (elegir). Decisión de UX:
   ambas superficies tienen **las mismas capacidades** (subir y borrar disponibles en las
   dos); el modo picker solo *suma* la acción de agregar — mismo criterio que la Media
   Library de WordPress.
+- **Panel de `company_admin` (real, ya no placeholder)** — rutas propias en
+  `router/company-admin.routes.ts`, montadas bajo `/company/*` con el mismo
+  `AdminLayout` que `superadmin`: `company-screens` (home), `company-playlists`,
+  `company-playlist-detail`, `company-media`. Reusa exactamente los mismos módulos y
+  componentes que usa `superadmin` dentro del detalle de company (`ScreensView`,
+  `PlaylistsView`, `PlaylistDetailView`, `MediaView`) — no hay código duplicado por rol.
+  El scoping por company se resuelve en cada vista con
+  `route.params.id ?? authStore.profile.company_id` (el primero cuando `superadmin`
+  navega el detalle de una company, el segundo cuando entra `company_admin`); la
+  seguridad real la hacen las policies RLS de `company_admin`, no este fallback en el
+  cliente. `NavMain.vue` arma el sidebar según `authStore.role` (items separados por
+  `roles: Role[]` en cada entrada). Policies de RLS de `company_admin` para `media`,
+  `playlists`, `playlist_items`, `screens` y `storage.objects` ya están en
+  `weluk-schema.sql` (bloques "company_admin ve/crea/actualiza/elimina...") — ver el
+  gotcha de `is_active` sin chequear en sección 12, que ahora es un riesgo real y no
+  solo teórico porque esta UI ya existe.
 
 ### Qué falta (en orden sugerido)
 
 1. **Asignar una playlist a una pantalla** desde el panel —
-   `screens.current_playlist_id` hoy se setea solo por SQL. Es lo que cierra el ciclo
-   completo del producto.
-2. Reordenar ítems de una playlist y editar duración por ítem.
+   `screens.current_playlist_id` hoy se setea solo por SQL (`EditScreenDialog` solo
+   edita el nombre). Es lo que cierra el ciclo completo del producto.
+2. Reordenar ítems de una playlist y editar duración por ítem (hoy `order_index` se fija
+   al agregar y no se puede tocar después; la duración solo se muestra, no se edita).
 3. Schedule por horario/fecha (punto 5 de la sección 9).
-4. Panel real de `company_admin` (hoy solo existe `superadmin`; `company_admin` ya
-   puede loguearse e invitarse por email, pero su home es un placeholder vacío).
+4. Agregar el chequeo de `is_active` a las policies de RLS de `company_admin` (ver
+   sección 12) — ahora que el panel de `company_admin` ya existe y tiene usuarios reales
+   probándolo, esto pasó de "no aplica todavía" a pendiente real.
 5. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
@@ -863,11 +886,13 @@ empieza a doler, el paso siguiente es el CLI de Supabase con migraciones
 
 ---
 
-_Última actualización: 29 julio 2026 — sección 14 con el estado real del `panel`
-(auth, companies, screens, playlists, media), sus convenciones, triggers y gotchas;
-actualizada la sección 9, que daba el panel por inexistente. Este documento debe vivir
-en los 4 repos (o ser referenciado desde ellos) y actualizarse a medida que se tomen
-nuevas decisiones._
+_Última actualización: 30 julio 2026 — sección 14: el panel de `company_admin` ya no es
+un placeholder (rutas propias en `/company/*`, reusa los mismos módulos que `superadmin`,
+RLS de `company_admin` completa para media/playlists/playlist_items/screens/storage),
+más eliminar pantalla y eliminar playlist (con warning de uso). Actualizada la sección 12
+para reflejar que el gotcha de `is_active` sin chequear en RLS ahora es un riesgo real,
+no hipotético. Este documento debe vivir en los 4 repos (o ser referenciado desde ellos)
+y actualizarse a medida que se tomen nuevas decisiones._
 
 ```
 
