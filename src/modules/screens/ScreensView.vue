@@ -8,7 +8,6 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/
 import { Button } from '@/components/ui/button'
 import { Monitor, Pencil, Trash2 } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
-import { useDisconnectScreen } from './composables/useDisconnectScreen'
 import { useDeleteScreen } from './composables/useDeleteScreen'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import EditScreenDialog from './components/EditScreenDialog.vue'
@@ -18,7 +17,6 @@ const route = useRoute()
 const authStore = useAuthStore()
 const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
-const { disconnectScreen, loading: disconnecting } = useDisconnectScreen()
 const { deleteScreen, loading: deleting } = useDeleteScreen()
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
@@ -35,14 +33,14 @@ function openEdit(screen: Screen) {
   editOpen.value = true
 }
 
-async function onDisconnect(screen: Screen) {
-  if (!confirm(`¿Desconectar "${screen.name}"? Volverá a mostrar un código de pairing.`)) return
-  await disconnectScreen(screen.id)
-  await fetchScreens()
-}
-
 async function onDelete(screen: Screen) {
-  if (!confirm(`¿Eliminar "${screen.name}"? Otra company podrá vincular este dispositivo.`)) return
+  if (
+    !confirm(
+      `¿Eliminar "${screen.name}"? Dejará de reproducir contenido y deberá vincularse de nuevo. Otra company podrá vincular este dispositivo.`,
+    )
+  )
+    return
+
   await deleteScreen(screen.id)
   await fetchScreens()
 }
@@ -102,13 +100,8 @@ async function onDelete(screen: Screen) {
                   <Pencil class="size-4" />
                   Editar
                 </Button>
-                <Button v-if="screen.status === 'paired'" size="sm" variant="ghost"
-                  class="text-destructive hover:text-destructive" :disabled="disconnecting"
-                  @click="onDisconnect(screen)">
-                  Desconectar
-                </Button>
-                <Button v-if="screen.status === 'disconnected'" size="sm" variant="ghost"
-                  class="text-destructive hover:text-destructive" :disabled="deleting" @click="onDelete(screen)">
+                <Button size="sm" variant="ghost" class="text-destructive hover:text-destructive"
+                  :disabled="deleting" @click="onDelete(screen)">
                   <Trash2 class="size-4" />
                   Eliminar
                 </Button>
