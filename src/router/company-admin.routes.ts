@@ -13,6 +13,18 @@ export const companyAdminRoutes: RouteRecordRaw[] = [
         meta: { roles: ['company_admin'] },
         component: () => import('@/modules/screens/ScreensView.vue'),
       },
+      {
+        path: 'playlists',
+        name: 'company-playlists',
+        meta: { roles: ['company_admin'] },
+        component: () => import('@/modules/playlists/PlaylistsView.vue'),
+      },
+      {
+        path: 'playlists/:playlistId',
+        name: 'company-playlist-detail',
+        meta: { roles: ['company_admin'] },
+        component: () => import('@/modules/playlists/PlaylistDetailView.vue'),
+      },
     ],
   },
 ]

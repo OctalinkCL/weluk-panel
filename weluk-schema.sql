@@ -180,6 +180,14 @@ create policy "company_admin ve su media"
   on media for select
   using (company_id = auth_company_id());
 
+create policy "company_admin sube su media"
+  on media for insert
+  with check (company_id = auth_company_id());
+
+create policy "company_admin elimina su media"
+  on media for delete
+  using (company_id = auth_company_id());
+
 create policy "superadmin acceso total a playlists"
   on playlists for all
   using (is_superadmin());
@@ -188,9 +196,31 @@ create policy "company_admin ve sus playlists"
   on playlists for select
   using (company_id = auth_company_id());
 
+create policy "company_admin crea sus playlists"
+  on playlists for insert
+  with check (company_id = auth_company_id());
+
+create policy "company_admin actualiza sus playlists"
+  on playlists for update
+  using (company_id = auth_company_id())
+  with check (company_id = auth_company_id());
+
 create policy "superadmin acceso total a playlist_items"
   on playlist_items for all
   using (is_superadmin());
+
+-- playlist_items no tiene company_id propia — se scopea vía la playlist dueña.
+create policy "company_admin ve items de sus playlists"
+  on playlist_items for select
+  using (playlist_id in (select id from playlists where company_id = auth_company_id()));
+
+create policy "company_admin agrega items a sus playlists"
+  on playlist_items for insert
+  with check (playlist_id in (select id from playlists where company_id = auth_company_id()));
+
+create policy "company_admin quita items de sus playlists"
+  on playlist_items for delete
+  using (playlist_id in (select id from playlists where company_id = auth_company_id()));
 
 create policy "superadmin acceso total a screens"
   on screens for all
@@ -318,6 +348,23 @@ create policy "superadmin lee media"
   on storage.objects for select
   to authenticated
   using (bucket_id = 'media' and is_superadmin());
+
+-- company_admin: mismo criterio, scopeado a su propia carpeta
+-- ({company_id}/{archivo}, ver useUploadMedia.ts) en vez de acceso total.
+create policy "company_admin sube archivos a su carpeta"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
+
+create policy "company_admin lee archivos de su carpeta"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
+
+create policy "company_admin borra archivos de su carpeta"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'media' and (storage.foldername(name))[1] = auth_company_id()::text);
 
 -- =====================================================
 -- REALTIME — habilitar en las tablas que escucha el visor

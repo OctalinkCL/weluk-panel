@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -14,7 +15,8 @@ import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
 
 const route = useRoute()
-const companyId = route.params.id as string
+const authStore = useAuthStore()
+const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 const playlistId = route.params.playlistId as string
 
 const { playlist, loading: loadingPlaylist, fetchPlaylist } = usePlaylist(playlistId)

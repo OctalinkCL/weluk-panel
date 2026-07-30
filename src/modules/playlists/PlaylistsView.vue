@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -10,11 +11,16 @@ import { formatDate } from '@/lib/utils'
 
 const route = useRoute()
 const router = useRouter()
-const companyId = route.params.id as string
+const authStore = useAuthStore()
+const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 const { playlists, loading, error } = usePlaylists(companyId)
 
 function goToDetail(playlistId: string) {
-  router.push({ name: 'admin-playlist-detail', params: { id: companyId, playlistId } })
+  if (route.params.id) {
+    router.push({ name: 'admin-playlist-detail', params: { id: companyId, playlistId } })
+  } else {
+    router.push({ name: 'company-playlist-detail', params: { playlistId } })
+  }
 }
 </script>
 
