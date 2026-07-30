@@ -4,16 +4,20 @@ import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { ListVideo } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
+import { ListVideo, Trash2 } from '@lucide/vue'
 import { usePlaylists } from './composables/usePlaylists'
+import { useDeletePlaylist } from './composables/useDeletePlaylist'
 import CreatePlaylistDialog from './components/CreatePlaylistDialog.vue'
 import { formatDate } from '@/lib/utils'
+import type { Playlist } from '@/types/playlist'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
-const { playlists, loading, error } = usePlaylists(companyId)
+const { playlists, loading, error, fetchPlaylists } = usePlaylists(companyId)
+const { deletePlaylist, getScreensUsing, loading: deleting } = useDeletePlaylist()
 
 function goToDetail(playlistId: string) {
   if (route.params.id) {
@@ -21,6 +25,18 @@ function goToDetail(playlistId: string) {
   } else {
     router.push({ name: 'company-playlist-detail', params: { playlistId } })
   }
+}
+
+async function onDelete(playlist: Playlist) {
+  const screenNames = await getScreensUsing(playlist.id)
+  const usageWarning =
+    screenNames.length > 0
+      ? ` Está asignada a: ${screenNames.join(', ')}. Esas pantallas se quedarán sin playlist.`
+      : ''
+
+  if (!confirm(`¿Eliminar "${playlist.name}"?${usageWarning}`)) return
+  await deletePlaylist(playlist.id)
+  await fetchPlaylists()
 }
 </script>
 
@@ -57,6 +73,7 @@ function goToDetail(playlistId: string) {
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Creada</TableHead>
+            <TableHead class="text-right"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,6 +90,20 @@ function goToDetail(playlistId: string) {
               </span>
             </TableCell>
             <TableCell>{{ formatDate(playlist.created_at) }}</TableCell>
+            <TableCell class="text-right">
+              <div class="flex items-center justify-end" @click.stop>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  class="text-destructive hover:text-destructive"
+                  :disabled="deleting"
+                  @click="onDelete(playlist)"
+                >
+                  <Trash2 class="size-4" />
+                  Eliminar
+                </Button>
+              </div>
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>

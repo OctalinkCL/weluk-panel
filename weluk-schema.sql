@@ -205,6 +205,10 @@ create policy "company_admin actualiza sus playlists"
   using (company_id = auth_company_id())
   with check (company_id = auth_company_id());
 
+create policy "company_admin elimina sus playlists"
+  on playlists for delete
+  using (company_id = auth_company_id());
+
 create policy "superadmin acceso total a playlist_items"
   on playlist_items for all
   using (is_superadmin());
