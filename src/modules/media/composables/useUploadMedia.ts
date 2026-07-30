@@ -1,4 +1,3 @@
-import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { optimizeImage } from '../lib/imageOptimize'
 import { readVideoDuration } from '../lib/videoMetadata'
@@ -23,24 +22,19 @@ function sanitizeFileName(name: string) {
     .replace(/[^a-zA-Z0-9.\-_]/g, '_')
 }
 
+export type UploadMediaResult = { media: Media; error: null } | { media: null; error: string }
+
 export function useUploadMedia() {
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-
-  async function uploadMedia(companyId: string, file: File): Promise<Media | null> {
-    loading.value = true
-    error.value = null
-
+  // Sin estado global de loading/error: uploadMedia se llama en paralelo para
+  // varios archivos a la vez (cola de subida en MediaGrid.vue), así que cada
+  // llamada devuelve su propio resultado en vez de pisar un ref compartido.
+  async function uploadMedia(companyId: string, file: File): Promise<UploadMediaResult> {
     const mediaType = ALLOWED_TYPES[file.type]
     if (!mediaType) {
-      error.value = 'Formato no permitido. Usa JPEG, PNG, WEBP o MP4.'
-      loading.value = false
-      return null
+      return { media: null, error: 'Formato no permitido. Usa JPEG, PNG, WEBP o MP4.' }
     }
     if (file.size > MAX_SIZE_BYTES) {
-      error.value = 'El archivo supera el límite de 50 MB.'
-      loading.value = false
-      return null
+      return { media: null, error: 'El archivo supera el límite de 50 MB.' }
     }
 
     const optimizedFile = mediaType === 'image' ? await optimizeImage(file) : file
@@ -53,9 +47,7 @@ export function useUploadMedia() {
       .upload(storagePath, optimizedFile, { cacheControl: '31536000', upsert: false })
 
     if (uploadErr) {
-      error.value = uploadErr.message
-      loading.value = false
-      return null
+      return { media: null, error: uploadErr.message }
     }
 
     const { data, error: insertErr } = await supabase
@@ -69,16 +61,16 @@ export function useUploadMedia() {
       .select()
 
     if (insertErr || !data || data.length === 0) {
-      error.value = insertErr?.message ?? 'No se pudo registrar el archivo (revisar policies de RLS).'
       // el archivo ya se subió a Storage pero no quedó registrado — evita dejarlo huérfano
       await supabase.storage.from('media').remove([storagePath])
-      loading.value = false
-      return null
+      return {
+        media: null,
+        error: insertErr?.message ?? 'No se pudo registrar el archivo (revisar policies de RLS).',
+      }
     }
 
-    loading.value = false
-    return data[0] as Media
+    return { media: data[0] as Media, error: null }
   }
 
-  return { uploadMedia, loading, error }
+  return { uploadMedia }
 }
