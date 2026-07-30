@@ -8,10 +8,10 @@ export const companyAdminRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       {
-        path: 'home',
-        name: 'company-home',
+        path: 'screens',
+        name: 'company-screens',
         meta: { roles: ['company_admin'] },
-        component: () => import('@/modules/home/CompanyHomeView.vue'),
+        component: () => import('@/modules/screens/ScreensView.vue'),
       },
     ],
   },

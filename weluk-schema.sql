@@ -200,9 +200,33 @@ create policy "company_admin ve sus screens"
   on screens for select
   using (company_id = auth_company_id());
 
+create policy "company_admin administra sus screens (insert)"
+  on screens for insert
+  with check (company_id = auth_company_id());
+
+create policy "company_admin administra sus screens (update)"
+  on screens for update
+  using (company_id = auth_company_id())
+  with check (company_id = auth_company_id());
+
 create policy "superadmin acceso total a pairing_codes"
   on pairing_codes for all
   using (is_superadmin());
+
+-- pairing_codes no tiene company_id (el código no está asociado a ninguna company
+-- hasta el momento del claim) — mismo modelo de confianza que ya se usa para "anon"
+-- en esta tabla (using (true)), extendido a cualquier usuario autenticado. Cubre a
+-- company_admin sin tocar la policy de superadmin de arriba.
+create policy "usuarios autenticados pueden leer pairing_codes"
+  on pairing_codes for select
+  to authenticated
+  using (true);
+
+create policy "usuarios autenticados pueden reclamar pairing_codes"
+  on pairing_codes for update
+  to authenticated
+  using (true)
+  with check (true);
 
 -- =====================================================
 -- TRIGGERS
