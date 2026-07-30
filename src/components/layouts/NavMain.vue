@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar'
-import { Building2, Monitor, ListVideo } from '@lucide/vue'
+import { Building2, Monitor, ListVideo, Images } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/types/profile'
 
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: 'Companies', routeName: 'admin-companies', icon: Building2, roles: ['superadmin'] as Role[] },
   { label: 'Screens', routeName: 'company-screens', icon: Monitor, roles: ['company_admin'] as Role[] },
   { label: 'Playlists', routeName: 'company-playlists', icon: ListVideo, roles: ['company_admin'] as Role[] },
+  { label: 'Media', routeName: 'company-media', icon: Images, roles: ['company_admin'] as Role[] },
 ]
 
 const visibleItems = computed(() =>

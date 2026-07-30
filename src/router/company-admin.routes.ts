@@ -25,6 +25,12 @@ export const companyAdminRoutes: RouteRecordRaw[] = [
         meta: { roles: ['company_admin'] },
         component: () => import('@/modules/playlists/PlaylistDetailView.vue'),
       },
+      {
+        path: 'media',
+        name: 'company-media',
+        meta: { roles: ['company_admin'] },
+        component: () => import('@/modules/media/MediaView.vue'),
+      },
     ],
   },
 ]

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import MediaGrid from './components/MediaGrid.vue'
 
 const route = useRoute()
-const companyId = route.params.id as string
+const authStore = useAuthStore()
+const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 </script>
 
 <template>
