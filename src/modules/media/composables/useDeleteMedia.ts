@@ -6,10 +6,13 @@ export function useDeleteMedia() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function getPlaylistsUsing(mediaId: string): Promise<string[]> {
-    const { data } = await supabase.from('playlist_items').select('playlists(name)').eq('media_id', mediaId)
-    const rows = (data ?? []) as unknown as { playlists: { name: string } | null }[]
-    return rows.map((row) => row.playlists?.name).filter((name): name is string => !!name)
+  // Chequeo agregado para borrado en lote: solo necesita saber si ALGUNO de los
+  // seleccionados está en uso, no el detalle de qué archivo afecta qué playlist
+  // (con varios archivos ese detalle se vuelve ilegible) — una sola query.
+  async function anyPlaylistsUsing(mediaIds: string[]): Promise<boolean> {
+    if (mediaIds.length === 0) return false
+    const { data } = await supabase.from('playlist_items').select('id').in('media_id', mediaIds).limit(1)
+    return !!data && data.length > 0
   }
 
   async function deleteMedia(item: Media): Promise<boolean> {
@@ -43,5 +46,5 @@ export function useDeleteMedia() {
     return true
   }
 
-  return { deleteMedia, getPlaylistsUsing, loading, error }
+  return { deleteMedia, anyPlaylistsUsing, loading, error }
 }

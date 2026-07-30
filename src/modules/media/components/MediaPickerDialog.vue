@@ -17,7 +17,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean]; added: [] }>()
       <DialogHeader>
         <DialogTitle>Elegir contenido</DialogTitle>
         <DialogDescription>
-          Haz clic en un archivo para agregarlo a la playlist. Si no está, súbelo aquí mismo.
+          Selecciona uno o más archivos y luego agrégalos a la playlist. Si no está, súbelo aquí mismo.
         </DialogDescription>
       </DialogHeader>
 

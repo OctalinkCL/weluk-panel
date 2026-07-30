@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, Trash2, Images, Check, Loader2, TriangleAlert, X } from '@lucide/vue'
+import { Video, Images, Check, Loader2, TriangleAlert, X } from '@lucide/vue'
 import { supabase } from '@/lib/supabase'
 import { useMedia } from '../composables/useMedia'
 import { useUploadMedia } from '../composables/useUploadMedia'
@@ -34,8 +34,8 @@ const emit = defineEmits<{ added: [] }>()
 
 const { media, loading, error, fetchMedia } = useMedia(props.companyId)
 const { uploadMedia } = useUploadMedia()
-const { deleteMedia, getPlaylistsUsing, loading: deleting, error: deleteError } = useDeleteMedia()
-const { addPlaylistItem, loading: adding, error: addError } = useAddPlaylistItem()
+const { deleteMedia, anyPlaylistsUsing, error: deleteError } = useDeleteMedia()
+const { addPlaylistItem, error: addError } = useAddPlaylistItem()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const existingItems = ref<{ media_id: string }[]>([])
@@ -44,6 +44,10 @@ const mediaIdsInPlaylist = computed(() => new Set(existingItems.value.map((i) =>
 const queue = ref<QueueItem[]>([])
 const queueActive = ref(false)
 const uploading = computed(() => queue.value.some((q) => q.status === 'pending' || q.status === 'uploading'))
+
+const selectedIds = ref<Set<string>>(new Set())
+const bulkDeleting = ref(false)
+const bulkAdding = ref(false)
 
 async function fetchExistingItems() {
   if (!props.playlistId) return
@@ -102,43 +106,94 @@ function fileName(storagePath: string) {
   return storagePath.split('/').pop()
 }
 
-async function onPick(item: Media) {
-  if (props.mode !== 'pick' || !props.playlistId || adding.value) return
-  const added = await addPlaylistItem(props.playlistId, item.id, existingItems.value.length)
-  if (added) {
+function toggleSelected(id: string) {
+  const next = new Set(selectedIds.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  selectedIds.value = next
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+}
+
+function onCardClick(item: Media) {
+  if (props.mode === 'pick' && mediaIdsInPlaylist.value.has(item.id)) return
+  toggleSelected(item.id)
+}
+
+async function addSelected() {
+  if (!props.playlistId) return
+  bulkAdding.value = true
+  try {
+    let order = existingItems.value.length
+    for (const id of selectedIds.value) {
+      const added = await addPlaylistItem(props.playlistId, id, order)
+      if (added) order++
+    }
+    clearSelection()
     await fetchExistingItems()
     emit('added')
+  } finally {
+    bulkAdding.value = false
   }
 }
 
-async function onDelete(item: Media) {
-  const playlistNames = await getPlaylistsUsing(item.id)
-  const usageWarning =
-    playlistNames.length > 0
-      ? ` Está en uso en: ${playlistNames.join(', ')}. Se quitará de ahí y, si alguna está publicada, la pantalla se actualizará sola.`
-      : ''
+async function onBulkDelete() {
+  const ids = Array.from(selectedIds.value)
+  if (ids.length === 0) return
 
-  if (!confirm(`¿Eliminar "${fileName(item.storage_path)}"?${usageWarning}`)) return
-  await deleteMedia(item)
-  await fetchMedia()
-  if (props.mode === 'pick') await fetchExistingItems()
+  const inUse = await anyPlaylistsUsing(ids)
+  const usageWarning = inUse
+    ? ' Algunos están en uso en playlists — se quitarán de ahí, y las que ya estén publicadas se actualizarán solas.'
+    : ''
+
+  if (!confirm(`¿Eliminar ${ids.length} archivo${ids.length > 1 ? 's' : ''}?${usageWarning} Esta acción no se puede deshacer.`))
+    return
+
+  bulkDeleting.value = true
+  try {
+    for (const id of ids) {
+      const item = media.value.find((m) => m.id === id)
+      if (item) await deleteMedia(item)
+    }
+    clearSelection()
+    await fetchMedia()
+  } finally {
+    bulkDeleting.value = false
+  }
 }
 </script>
 
 <template>
   <div class="grid gap-4">
-    <div class="flex justify-end">
-      <input
-        ref="fileInput"
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,video/mp4"
-        class="hidden"
-        @change="onFileSelected"
-      />
-      <Button size="sm" :disabled="uploading" @click="triggerUpload">
-        {{ uploading ? 'Subiendo...' : 'Subir archivos' }}
-      </Button>
+    <div class="flex items-center justify-between gap-2">
+      <div v-if="selectedIds.size > 0" class="flex items-center gap-2 text-sm">
+        <span class="text-muted-foreground">{{ selectedIds.size }} seleccionado{{ selectedIds.size > 1 ? 's' : '' }}</span>
+        <Button size="sm" variant="ghost" :disabled="bulkAdding || bulkDeleting" @click="clearSelection">Cancelar</Button>
+        <Button v-if="mode === 'pick'" size="sm" :disabled="bulkAdding || bulkDeleting" @click="addSelected">
+          <Loader2 v-if="bulkAdding" class="size-3.5 animate-spin" />
+          {{ bulkAdding ? 'Agregando...' : `Agregar ${selectedIds.size} a la lista` }}
+        </Button>
+        <Button size="sm" variant="destructive" :disabled="bulkAdding || bulkDeleting" @click="onBulkDelete">
+          <Loader2 v-if="bulkDeleting" class="size-3.5 animate-spin" />
+          {{ bulkDeleting ? 'Eliminando...' : `Eliminar ${selectedIds.size}` }}
+        </Button>
+      </div>
+      <div v-else />
+
+      <div>
+        <input
+          ref="fileInput"
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp,video/mp4"
+          class="hidden"
+          @change="onFileSelected"
+        />
+        <Button size="sm" :disabled="uploading" @click="triggerUpload">
+          {{ uploading ? 'Subiendo...' : 'Subir archivos' }}
+        </Button>
+      </div>
     </div>
 
     <p v-if="error || deleteError || addError" class="text-sm text-destructive">
@@ -186,9 +241,9 @@ async function onDelete(item: Media) {
       <div
         v-for="item in media"
         :key="item.id"
-        class="group relative border rounded-lg overflow-hidden"
-        :class="mode === 'pick' ? 'cursor-pointer hover:border-foreground' : ''"
-        @click="onPick(item)"
+        class="group relative border rounded-lg overflow-hidden cursor-pointer hover:border-foreground"
+        :class="selectedIds.has(item.id) ? 'ring-2 ring-primary' : ''"
+        @click="onCardClick(item)"
       >
         <div class="aspect-video bg-muted flex items-center justify-center">
           <img
@@ -208,16 +263,6 @@ async function onDelete(item: Media) {
         >
           <Check class="size-3" />
         </div>
-
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          class="absolute top-1 right-1 bg-background/80 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100"
-          :disabled="deleting"
-          @click.stop="onDelete(item)"
-        >
-          <Trash2 class="size-4" />
-        </Button>
       </div>
     </div>
   </div>
