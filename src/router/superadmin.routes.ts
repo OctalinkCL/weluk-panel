@@ -42,6 +42,11 @@ export const superadminRoutes: RouteRecordRaw[] = [
             name: 'admin-media',
             component: () => import('@/modules/media/MediaView.vue'),
           },
+          {
+            path: 'users',
+            name: 'admin-users',
+            component: () => import('@/modules/users/UsersView.vue'),
+          },
         ],
       },
     ],

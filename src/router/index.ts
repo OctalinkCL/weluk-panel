@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from './auth.routes'
 import { superadminRoutes } from './superadmin.routes'
+import { companyAdminRoutes } from './company-admin.routes'
 import { authGuard } from './guards'
 
 const router = createRouter({
@@ -12,6 +13,7 @@ const router = createRouter({
     },
     ...authRoutes,
     ...superadminRoutes,
+    ...companyAdminRoutes,
   ],
 })
 

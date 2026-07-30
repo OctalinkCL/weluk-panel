@@ -11,6 +11,7 @@ const TABS = [
   { label: 'Screens', routeName: 'admin-screens', matches: ['admin-screens'] },
   { label: 'Playlists', routeName: 'admin-playlists', matches: ['admin-playlists', 'admin-playlist-detail'] },
   { label: 'Media', routeName: 'admin-media', matches: ['admin-media'] },
+  { label: 'Usuarios', routeName: 'admin-users', matches: ['admin-users'] },
 ]
 const isTabActive = (matches: string[]) => matches.includes(route.name as string)
 </script>

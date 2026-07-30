@@ -53,5 +53,10 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = null
   }
 
-  return { user, profile, isAuthenticated, role, init, login, logout }
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  }
+
+  return { user, profile, isAuthenticated, role, init, login, logout, updatePassword }
 })

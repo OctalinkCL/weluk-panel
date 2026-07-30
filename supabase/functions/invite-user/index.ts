@@ -44,11 +44,11 @@ Deno.serve(async (req) => {
       .single()
 
     if (callerProfile?.role !== 'superadmin') {
-      return jsonResponse({ error: 'Solo un superadmin puede crear usuarios' }, 403)
+      return jsonResponse({ error: 'Solo un superadmin puede invitar usuarios' }, 403)
     }
 
     // --- Validar el body contra las reglas del schema (weluk-schema.sql) ---
-    const { email, password, full_name, role, company_id } = await req.json()
+    const { email, full_name, role, company_id, redirectTo } = await req.json()
 
     if (!VALID_ROLES.includes(role)) {
       return jsonResponse({ error: `role inválido, debe ser: ${VALID_ROLES.join(', ')}` }, 400)
@@ -60,14 +60,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'superadmin no debe tener company_id' }, 400)
     }
 
-    // --- Crear el usuario en Auth ---
+    // --- Invitar al usuario por email (define su propia contraseña vía el link) ---
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: { full_name, role, company_id },
+      redirectTo,
     })
     if (authError) throw authError
 

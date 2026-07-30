@@ -723,7 +723,7 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 
 ### Arranque en una máquina nueva
 
-1. `npm install`
+1. `pnpm install` (proyecto migrado de npm a pnpm — fijado en `package.json` vía `packageManager`, no usar `npm install`/`yarn`)
 2. **Crear `.env` a mano** — está en `.gitignore`, no viaja con el repo. Copiar
    `.env.example` y llenar con las credenciales del proyecto Supabase real
    (Project Settings → API):
@@ -733,13 +733,14 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
    ```
    Sin esto la app **no arranca**: `createClient('', '')` lanza
    `"supabaseUrl is required."` y queda la pantalla en blanco.
-3. `npm run dev`
+3. `pnpm dev`
 4. Login con un usuario que tenga fila en `profiles` con `role = 'superadmin'`.
 
 ### El primer superadmin se crea a mano (huevo y gallina)
 
-`supabase/functions/create-user` exige que quien llama ya sea superadmin, así que el
-primero se crea manualmente: Auth → Add user en Studio, copiar el UID, y luego:
+`supabase/functions/invite-user` exige que quien llama ya sea superadmin (además, invita
+por email — no sirve para el primer usuario que no tiene a nadie que lo invite), así que
+el primero se crea manualmente: Auth → Add user en Studio, copiar el UID, y luego:
 
 ```sql
 insert into profiles (id, company_id, role, full_name)
@@ -786,10 +787,17 @@ Reglas acordadas, **no romper sin preguntar**:
 ### Qué está implementado
 
 - **Auth**: login/logout real, `stores/auth.ts`, guard por rol, redirección por
-  `role-homes`. Solo `superadmin` tiene home mapeado; `company_admin` todavía no
-  tiene panel propio.
+  `role-homes`. `company_admin` ya tiene un home mapeado (`company-home`), pero es
+  solo un placeholder ("Bienvenido a Weluk / tu panel está en construcción") — el
+  panel real de `company_admin` sigue sin existir (ver "Qué falta").
 - **Companies**: listar, crear, editar nombre, habilitar/deshabilitar (`is_active`).
-- **Company detail** (`/admin/companies/:id`) con tabs: **Screens | Playlists | Media**.
+- **Company detail** (`/admin/companies/:id`) con tabs: **Screens | Playlists | Media | Usuarios**.
+- **Usuarios**: invitar `company_admin` por email desde el tab Usuarios de una company
+  (`supabase/functions/invite-user`, primer uso de `supabase.functions.invoke` en el
+  panel). El usuario define su propia contraseña vía el link del mail
+  (`/set-password`, `authStore.updatePassword`) — no hay contraseña manual. Falta
+  editar/eliminar usuarios (la tabla `profiles` hoy solo tiene policies de `select`,
+  ver sección 12).
 - **Screens**: listar, vincular por código de pairing (reemplaza el SQL manual de la
   sección 6), editar nombre, desconectar (hace el mismo `UPDATE` que el overlay del
   visor, así que la TV reacciona igual y vuelve a pairing).
@@ -809,7 +817,8 @@ Reglas acordadas, **no romper sin preguntar**:
    completo del producto.
 2. Reordenar ítems de una playlist y editar duración por ítem.
 3. Schedule por horario/fecha (punto 5 de la sección 9).
-4. Panel de `company_admin` (hoy solo existe `superadmin`).
+4. Panel real de `company_admin` (hoy solo existe `superadmin`; `company_admin` ya
+   puede loguearse e invitarse por email, pero su home es un placeholder vacío).
 5. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
