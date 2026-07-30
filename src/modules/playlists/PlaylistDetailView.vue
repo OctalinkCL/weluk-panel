@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { VueDraggable } from 'vue-draggable-plus'
 import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, ListVideo, Trash2, Monitor } from '@lucide/vue'
+import { Video, ListVideo, Trash2, Monitor, GripVertical } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
 import { usePlaylistItems } from './composables/usePlaylistItems'
 import { usePublishPlaylist } from './composables/usePublishPlaylist'
 import { useDeletePlaylistItem } from './composables/useDeletePlaylistItem'
 import { useDeletePlaylist } from './composables/useDeletePlaylist'
+import { useUpdatePlaylistItem } from './composables/useUpdatePlaylistItem'
+import { useReorderPlaylistItems } from './composables/useReorderPlaylistItems'
 import MediaPickerDialog from '@/modules/media/components/MediaPickerDialog.vue'
 import AssignScreensDialog from './components/AssignScreensDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
@@ -26,6 +30,8 @@ const { items, loading, error, fetchItems } = usePlaylistItems(playlistId)
 const { publishPlaylist, loading: publishing, error: publishError } = usePublishPlaylist()
 const { deletePlaylistItem, loading: removing, error: removeError } = useDeletePlaylistItem()
 const { getScreensUsing } = useDeletePlaylist()
+const { updateDuration, error: durationError } = useUpdatePlaylistItem()
+const { reorderItems, error: reorderError } = useReorderPlaylistItems()
 
 const mediaOpen = ref(false)
 const assignOpen = ref(false)
@@ -76,6 +82,17 @@ async function onScreensAssigned() {
   await fetchAssignedScreens()
   await fetchPlaylist()
 }
+
+async function onReorder() {
+  await reorderItems(items.value)
+}
+
+async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
+  const value = Math.round(Number((event.target as HTMLInputElement).value))
+  if (!Number.isFinite(value) || value <= 0) return
+  const ok = await updateDuration(item.id, value)
+  if (ok) item.duration_seconds = value
+}
 </script>
 
 <template>
@@ -117,8 +134,8 @@ async function onScreensAssigned() {
       <template v-else>Asigná al menos una pantalla para poder publicar.</template>
     </p>
 
-    <p v-if="error || publishError || removeError" class="text-sm text-destructive">
-      {{ error || publishError || removeError }}
+    <p v-if="error || publishError || removeError || durationError || reorderError" class="text-sm text-destructive">
+      {{ error || publishError || removeError || durationError || reorderError }}
     </p>
 
     <div v-if="loading" class="grid gap-2">
@@ -135,12 +152,14 @@ async function onScreensAssigned() {
       </EmptyHeader>
     </Empty>
 
-    <div v-else class="grid gap-2">
+    <VueDraggable v-else v-model="items" handle=".drag-handle" :animation="150" class="grid gap-2" @end="onReorder">
       <div
         v-for="(item, index) in items"
         :key="item.id"
         class="flex items-center gap-4 border rounded-lg p-3"
       >
+        <GripVertical class="drag-handle size-4 text-muted-foreground cursor-grab shrink-0" />
+
         <span class="text-sm text-muted-foreground w-5 text-center shrink-0">{{ index + 1 }}</span>
 
         <div class="size-16 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
@@ -157,9 +176,16 @@ async function onScreensAssigned() {
           <p class="text-xs text-muted-foreground">{{ item.media.type === 'image' ? 'Imagen' : 'Video' }}</p>
         </div>
 
-        <span class="text-sm text-muted-foreground shrink-0">
-          {{ item.duration_seconds ?? item.media.duration_seconds }}s
-        </span>
+        <div class="flex items-center gap-1 shrink-0">
+          <Input
+            type="number"
+            min="1"
+            class="w-16 h-8 text-sm text-center"
+            :model-value="item.duration_seconds ?? item.media.duration_seconds"
+            @change="onDurationChange(item, $event)"
+          />
+          <span class="text-sm text-muted-foreground">s</span>
+        </div>
 
         <Button
           size="icon-sm"
@@ -171,7 +197,7 @@ async function onScreensAssigned() {
           <Trash2 class="size-4" />
         </Button>
       </div>
-    </div>
+    </VueDraggable>
   </div>
 
   <MediaPickerDialog

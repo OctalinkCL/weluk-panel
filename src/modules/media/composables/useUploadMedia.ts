@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { optimizeImage } from '../lib/imageOptimize'
+import { readVideoDuration } from '../lib/videoMetadata'
 import type { Media, MediaType } from '@/types/media'
 
 const ALLOWED_TYPES: Record<string, MediaType> = {
@@ -43,6 +44,7 @@ export function useUploadMedia() {
     }
 
     const optimizedFile = mediaType === 'image' ? await optimizeImage(file) : file
+    const durationSeconds = mediaType === 'video' ? await readVideoDuration(optimizedFile) : null
 
     const storagePath = `${companyId}/${crypto.randomUUID()}-${sanitizeFileName(optimizedFile.name)}`
 
@@ -58,7 +60,12 @@ export function useUploadMedia() {
 
     const { data, error: insertErr } = await supabase
       .from('media')
-      .insert({ company_id: companyId, type: mediaType, storage_path: storagePath })
+      .insert({
+        company_id: companyId,
+        type: mediaType,
+        storage_path: storagePath,
+        ...(durationSeconds ? { duration_seconds: durationSeconds } : {}),
+      })
       .select()
 
     if (insertErr || !data || data.length === 0) {

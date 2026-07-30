@@ -226,6 +226,14 @@ create policy "company_admin quita items de sus playlists"
   on playlist_items for delete
   using (playlist_id in (select id from playlists where company_id = auth_company_id()));
 
+-- Necesaria para reordenar (order_index) y editar duración (duration_seconds)
+-- desde el panel. No existía porque hasta ahora playlist_items solo se
+-- insertaba/borraba, nunca se actualizaba.
+create policy "company_admin actualiza items de sus playlists"
+  on playlist_items for update
+  using (playlist_id in (select id from playlists where company_id = auth_company_id()))
+  with check (playlist_id in (select id from playlists where company_id = auth_company_id()));
+
 create policy "superadmin acceso total a screens"
   on screens for all
   using (is_superadmin());
