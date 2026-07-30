@@ -209,6 +209,12 @@ create policy "company_admin administra sus screens (update)"
   using (company_id = auth_company_id())
   with check (company_id = auth_company_id());
 
+-- Elimina la fila por completo (no solo desconectar) para liberar el device_uuid
+-- y que otra company pueda vincularlo desde cero — ver gotcha de RLS en sección 14.
+create policy "company_admin elimina sus screens"
+  on screens for delete
+  using (company_id = auth_company_id());
+
 create policy "superadmin acceso total a pairing_codes"
   on pairing_codes for all
   using (is_superadmin());

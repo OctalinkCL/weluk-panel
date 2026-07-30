@@ -6,12 +6,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pencil } from '@lucide/vue'
+import { Monitor, Pencil, Trash2 } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDisconnectScreen } from './composables/useDisconnectScreen'
+import { useDeleteScreen } from './composables/useDeleteScreen'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import EditScreenDialog from './components/EditScreenDialog.vue'
-import { formatDate } from '@/lib/utils'
 import type { Screen, ScreenStatus } from '@/types/screen'
 
 const route = useRoute()
@@ -19,6 +19,7 @@ const authStore = useAuthStore()
 const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
 const { disconnectScreen, loading: disconnecting } = useDisconnectScreen()
+const { deleteScreen, loading: deleting } = useDeleteScreen()
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
@@ -37,6 +38,12 @@ function openEdit(screen: Screen) {
 async function onDisconnect(screen: Screen) {
   if (!confirm(`¿Desconectar "${screen.name}"? Volverá a mostrar un código de pairing.`)) return
   await disconnectScreen(screen.id)
+  await fetchScreens()
+}
+
+async function onDelete(screen: Screen) {
+  if (!confirm(`¿Eliminar "${screen.name}"? Otra company podrá vincular este dispositivo.`)) return
+  await deleteScreen(screen.id)
   await fetchScreens()
 }
 </script>
@@ -73,7 +80,7 @@ async function onDisconnect(screen: Screen) {
           <TableRow>
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>Última conexión</TableHead>
+            <TableHead>Playlist</TableHead>
             <TableHead class="text-right"></TableHead>
           </TableRow>
         </TableHeader>
@@ -85,22 +92,25 @@ async function onDisconnect(screen: Screen) {
                 {{ STATUS_LABEL[screen.status] }}
               </span>
             </TableCell>
-            <TableCell>{{ screen.last_seen_at ? formatDate(screen.last_seen_at) : 'Nunca' }}</TableCell>
+            <TableCell>
+              <span v-if="screen.playlist" class="text-sm">{{ screen.playlist.name }}</span>
+              <span v-else class="text-sm text-muted-foreground">Sin playlist</span>
+            </TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end gap-1">
                 <Button size="sm" variant="ghost" @click="openEdit(screen)">
                   <Pencil class="size-4" />
                   Editar
                 </Button>
-                <Button
-                  v-if="screen.status === 'paired'"
-                  size="sm"
-                  variant="ghost"
-                  class="text-destructive hover:text-destructive"
-                  :disabled="disconnecting"
-                  @click="onDisconnect(screen)"
-                >
+                <Button v-if="screen.status === 'paired'" size="sm" variant="ghost"
+                  class="text-destructive hover:text-destructive" :disabled="disconnecting"
+                  @click="onDisconnect(screen)">
                   Desconectar
+                </Button>
+                <Button v-if="screen.status === 'disconnected'" size="sm" variant="ghost"
+                  class="text-destructive hover:text-destructive" :disabled="deleting" @click="onDelete(screen)">
+                  <Trash2 class="size-4" />
+                  Eliminar
                 </Button>
               </div>
             </TableCell>
@@ -110,9 +120,5 @@ async function onDisconnect(screen: Screen) {
     </div>
   </div>
 
-  <EditScreenDialog
-    v-model:open="editOpen"
-    :screen="selectedScreen"
-    @updated="fetchScreens"
-  />
+  <EditScreenDialog v-model:open="editOpen" :screen="selectedScreen" @updated="fetchScreens" />
 </template>
