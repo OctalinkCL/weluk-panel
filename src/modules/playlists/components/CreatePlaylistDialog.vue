@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,6 +16,7 @@ import { useCreatePlaylist } from '../composables/useCreatePlaylist'
 
 const props = defineProps<{ companyId: string }>()
 
+const route = useRoute()
 const router = useRouter()
 const open = ref(false)
 const name = ref('')
@@ -26,10 +27,11 @@ async function onSubmit() {
   if (playlist) {
     name.value = ''
     open.value = false
-    router.push({
-      name: 'admin-playlist-detail',
-      params: { id: props.companyId, playlistId: playlist.id },
-    })
+    if (route.params.id) {
+      router.push({ name: 'admin-playlist-detail', params: { id: props.companyId, playlistId: playlist.id } })
+    } else {
+      router.push({ name: 'company-playlist-detail', params: { playlistId: playlist.id } })
+    }
   }
 }
 </script>
