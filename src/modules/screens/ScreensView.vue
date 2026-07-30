@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch as watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Monitor, Pencil, Trash2 } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDeleteScreen } from './composables/useDeleteScreen'
+import { useScreenPresence } from './composables/useScreenPresence'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import EditScreenDialog from './components/EditScreenDialog.vue'
 import type { Screen, ScreenStatus } from '@/types/screen'
@@ -18,6 +19,13 @@ const authStore = useAuthStore()
 const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
 const { deleteScreen, loading: deleting } = useDeleteScreen()
+const { onlineDeviceUuids, sync: syncPresence } = useScreenPresence()
+
+watchEffect(
+  screens,
+  (list) => syncPresence(list.map((screen) => screen.device_uuid)),
+  { immediate: true },
+)
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
@@ -78,6 +86,7 @@ async function onDelete(screen: Screen) {
           <TableRow>
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Conexión</TableHead>
             <TableHead>Playlist</TableHead>
             <TableHead class="text-right"></TableHead>
           </TableRow>
@@ -88,6 +97,16 @@ async function onDelete(screen: Screen) {
             <TableCell>
               <span class="text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
                 {{ STATUS_LABEL[screen.status] }}
+              </span>
+            </TableCell>
+            <TableCell>
+              <span v-if="screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
+              <span v-else class="flex items-center gap-1.5 text-sm">
+                <span
+                  class="size-2 rounded-full"
+                  :class="onlineDeviceUuids.has(screen.device_uuid) ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                />
+                {{ onlineDeviceUuids.has(screen.device_uuid) ? 'En línea' : 'Sin conexión' }}
               </span>
             </TableCell>
             <TableCell>
