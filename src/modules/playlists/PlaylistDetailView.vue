@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, ListVideo, Trash2 } from '@lucide/vue'
+import { Video, ListVideo, Trash2, Monitor } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
 import { usePlaylistItems } from './composables/usePlaylistItems'
 import { usePublishPlaylist } from './composables/usePublishPlaylist'
 import { useDeletePlaylistItem } from './composables/useDeletePlaylistItem'
+import { useDeletePlaylist } from './composables/useDeletePlaylist'
 import MediaPickerDialog from '@/modules/media/components/MediaPickerDialog.vue'
+import AssignScreensDialog from './components/AssignScreensDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
 
@@ -23,8 +25,19 @@ const { playlist, loading: loadingPlaylist, fetchPlaylist } = usePlaylist(playli
 const { items, loading, error, fetchItems } = usePlaylistItems(playlistId)
 const { publishPlaylist, loading: publishing, error: publishError } = usePublishPlaylist()
 const { deletePlaylistItem, loading: removing, error: removeError } = useDeletePlaylistItem()
+const { getScreensUsing } = useDeletePlaylist()
 
 const mediaOpen = ref(false)
+const assignOpen = ref(false)
+const assignedScreens = ref<string[]>([])
+
+async function fetchAssignedScreens() {
+  assignedScreens.value = await getScreensUsing(playlistId)
+}
+
+onMounted(fetchAssignedScreens)
+
+const canPublish = computed(() => items.value.length > 0 && assignedScreens.value.length > 0)
 
 const status = computed(() => {
   if (!playlist.value) return null
@@ -58,6 +71,11 @@ async function onRemoveItem(item: PlaylistItemWithMedia) {
   await fetchItems()
   await fetchPlaylist()
 }
+
+async function onScreensAssigned() {
+  await fetchAssignedScreens()
+  await fetchPlaylist()
+}
 </script>
 
 <template>
@@ -77,15 +95,27 @@ async function onRemoveItem(item: PlaylistItemWithMedia) {
             {{ STATUS_LABEL[status] }}
           </span>
         </div>
-        <p class="text-sm text-muted-foreground">Contenido de la playlist.</p>
+        <p class="text-sm text-muted-foreground">
+          <template v-if="assignedScreens.length > 0">Pantallas: {{ assignedScreens.join(', ') }}</template>
+          <template v-else>Sin pantallas asignadas.</template>
+        </p>
       </div>
       <div class="flex items-center gap-2">
         <Button size="sm" variant="outline" @click="mediaOpen = true">Agregar contenido</Button>
-        <Button size="sm" :disabled="publishing || items.length === 0" @click="onPublish">
+        <Button size="sm" variant="outline" @click="assignOpen = true">
+          <Monitor class="size-4" />
+          Asignar pantallas
+        </Button>
+        <Button size="sm" :disabled="publishing || !canPublish" @click="onPublish">
           {{ publishing ? 'Publicando...' : status === 'draft' ? 'Publicar' : 'Publicar cambios' }}
         </Button>
       </div>
     </header>
+
+    <p v-if="!canPublish" class="text-sm text-muted-foreground">
+      <template v-if="items.length === 0">Agregá al menos un ítem para poder publicar.</template>
+      <template v-else>Asigná al menos una pantalla para poder publicar.</template>
+    </p>
 
     <p v-if="error || publishError || removeError" class="text-sm text-destructive">
       {{ error || publishError || removeError }}
@@ -149,5 +179,13 @@ async function onRemoveItem(item: PlaylistItemWithMedia) {
     :company-id="companyId"
     :playlist-id="playlistId"
     @added="onAdded"
+  />
+
+  <AssignScreensDialog
+    v-model:open="assignOpen"
+    :company-id="companyId"
+    :playlist-id="playlistId"
+    :published-at="playlist?.published_at ?? null"
+    @assigned="onScreensAssigned"
   />
 </template>
