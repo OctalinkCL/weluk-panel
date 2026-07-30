@@ -98,10 +98,6 @@ function removeFromQueue(id: string) {
   queue.value = queue.value.filter((q) => q.id !== id)
 }
 
-function formatSize(bytes: number) {
-  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`
-}
-
 function fileName(storagePath: string) {
   return storagePath.split('/').pop()
 }
@@ -173,9 +169,7 @@ async function onDelete(item: Media) {
         <div class="p-2 flex items-center justify-between gap-1">
           <div class="min-w-0">
             <p class="text-xs font-medium truncate">{{ item.file.name }}</p>
-            <p class="text-xs truncate" :class="item.status === 'error' ? 'text-destructive' : 'text-muted-foreground'">
-              {{ item.status === 'error' ? item.error : formatSize(item.file.size) }}
-            </p>
+            <p v-if="item.status === 'error'" class="text-xs truncate text-destructive">{{ item.error }}</p>
           </div>
           <Button
             v-if="item.status === 'error'"
