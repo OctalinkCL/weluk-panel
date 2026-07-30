@@ -293,16 +293,29 @@ Datos base en el proyecto Supabase para desarrollar/probar sin depender del `pan
 
 ### Detección de pantalla conectada/desconectada
 
-Se usa **Supabase Realtime Presence**, no solo heartbeats manuales:
+Se usa **Supabase Realtime Presence**, no solo heartbeats manuales.
 
-- El visor, al abrir su canal Realtime (el mismo que ya mantiene abierto 24/7 para
-  pairing/sync), se "anuncia" (`channel.track(...)`). Supabase detecta automáticamente
-  cuando esa conexión se cae, sin que el visor tenga que avisar explícitamente.
-- El panel puede mostrar estado online/offline en tiempo real vía el evento
-  `presence.sync` del canal.
-- `screens.last_seen_at` se mantiene como respaldo histórico (para reportes tipo
-  "esta pantalla lleva 3 días sin conectarse"), ya que Presence solo vive mientras el
-  canal está activo, no guarda historial.
+**✅ Implementado y validado end-to-end (30 julio 2026)** — cerró la brecha que estuvo
+documentada en la sección 13:
+
+- El visor hace `channel.track(...)` **una sola vez**, apenas su `.subscribe()` sobre el
+  canal `screen-${device_uuid}` (el mismo que ya mantiene abierto 24/7 para sync de
+  playlist — no es un canal nuevo) confirma estado `SUBSCRIBED`. No es periódico ni en
+  loop. Supabase detecta automáticamente cuando esa conexión se cae, sin que el visor
+  tenga que avisar explícitamente al desconectarse.
+- El panel (`weluk-panel`, `src/modules/screens/composables/useScreenPresence.ts`)
+  escucha `presence.sync` sobre ese mismo canal, por cada pantalla visible, y muestra el
+  estado en vivo en `ScreensView` (columna "Conexión", punto verde/gris) — sin polling,
+  reusando la conexión que ya existía (no suma conexiones concurrentes nuevas).
+- **Costo verificado, no solo estimado:** contra el dashboard real de Supabase, con el
+  patrón de "track una sola vez" el tráfico de mensajes es despreciable (confirmado:
+  119/2,000,000 mensajes usados en el proyecto real tras todas las pruebas de esta
+  sesión). Realtime se factura por cantidad de mensajes, no por GB — no tiene relación
+  con el incidente de egress de la sección 7.
+- **Sigue pendiente:** `screens.last_seen_at` como respaldo histórico (para reportes
+  tipo "esta pantalla lleva 3 días sin conectarse") — Presence resuelve el estado "ahora
+  mismo" pero no guarda historial, y no se implementó ningún `UPDATE` periódico de esta
+  columna.
 - Funciona igual en cualquier hardware (visor-web, APK) porque es una función del
   cliente JS de Supabase, no depende del tipo de dispositivo.
 
@@ -584,7 +597,8 @@ acceso y SLA), algo que las herramientas self-serve de terceros no resuelven bie
 1. ✅ Visor + pairing (código corto, ver sección 6) — implementado y validado en
    `visor-web` con 3 dispositivos reales simultáneos (2 Smart TVs + notebook)
 2. ✅ CRUD de pantallas — implementado en `panel` (listar, vincular por código de
-   pairing, editar nombre, desconectar). Ver sección 14.
+   pairing, editar nombre, eliminar en un solo paso, estado de conexión en vivo). Ver
+   sección 14.
 3. ✅ Upload de contenido — implementado en `panel` (subir con optimización a WebP,
    listar, eliminar). Ver sección 14.
 4. ✅ CRUD de playlists — implementado en `panel`: crear, agregar/quitar ítems,
@@ -704,6 +718,13 @@ primero es: pairing + Realtime + caché local + comportamiento en hardware real.
 - **Para resolverlo (trabajo en `weluk-browser`, no en `panel`):** agregar
   `channel.track(...)` al canal `screen-${deviceUuid}` que ya existe, y opcionalmente
   un `UPDATE screens SET last_seen_at = now()` periódico o al desconectar.
+- **✅ Resuelto (30 julio 2026):** `weluk-browser` agregó el `channel.track(...)` (una
+  sola vez, al confirmar `SUBSCRIBED`, no en loop) y `weluk-panel` agregó el lado que
+  escucha (`useScreenPresence.ts`, columna "Conexión" en `ScreensView`) — ver detalle en
+  sección 5. Validado en tiempo real en ambos sentidos: online al conectar, offline al
+  cortar señal/apagar, y también al eliminar la pantalla (interactúa bien con el fix de
+  delete de la sección 14). `last_seen_at` sigue sin escribirse — esa parte puntual de
+  la brecha sigue abierta.
 
 ---
 
@@ -789,10 +810,11 @@ Reglas acordadas, **no romper sin preguntar**:
   editar/eliminar usuarios (la tabla `profiles` hoy solo tiene policies de `select`,
   ver sección 12).
 - **Screens**: listar, vincular por código de pairing (reemplaza el SQL manual de la
-  sección 6), editar nombre, desconectar, **eliminar** (hace el mismo `UPDATE`/`DELETE`
-  que el overlay del visor, así que la TV reacciona igual y vuelve a pairing; al
-  eliminar, otra company puede volver a vincular ese `device_uuid`). Lista también
-  la playlist asignada a cada pantalla (solo lectura, ver "Qué falta" ítem 1).
+  sección 6), editar nombre, **eliminar en un solo paso** (sin "Desconectar" previo —
+  ver el gotcha cross-repo más abajo sobre por qué esto requirió un fix en
+  `weluk-browser`, no solo en el panel), estado de **conexión en vivo** (Presence, punto
+  verde/gris — ver sección 5). Lista también la playlist asignada a cada pantalla (solo
+  lectura).
 - **Playlists**: listar, crear (navega directo al detalle), ver ítems, agregar/quitar
   ítems, publicar, **eliminar** (con warning si hay pantallas usándola —
   `useDeletePlaylist.getScreensUsing`). Badge de estado: Borrador / Cambios sin
@@ -975,6 +997,77 @@ entra en el alcance de este fix puntual. Decisión consciente: para el nivel de 
 maneja esta plataforma (nombres de pantalla, no información confidencial), el riesgo
 residual es aceptable para el MVP; revisar si el negocio escala a clientes que exijan más.
 
+### ✅ "Eliminar pantalla" simplificado a un solo paso — requirió fix cross-repo (30 julio 2026)
+
+Se sacó el paso intermedio de "Desconectar" del panel: ahora un solo botón "Eliminar"
+(con confirm), sin importar el `status` de la pantalla. `useDisconnectScreen.ts` se
+borró del repo (ya no lo usaba nadie). El paso intermedio no se movió a otro lado del
+panel — **dejó de ser necesario** porque el fix real se hizo un nivel más abajo, en
+`weluk-browser` y en Supabase:
+
+- Antes, el visor solo sabía reaccionar (vía Realtime) a `UPDATE status='disconnected'`
+  para volver a pairing. Un `DELETE` directo sobre una pantalla `paired` era un evento
+  nunca manejado — riesgo real de dejar una TV en vivo congelada sin aviso.
+- Fix en `weluk-browser`: `Player.vue` pasó de escuchar solo `'UPDATE'` a `event: '*'`,
+  tratando `payload.eventType === 'DELETE'` igual que un disconnect; `loadScreen()` pasó
+  de `.single()` a `.maybeSingle()` (cerró una ventana de carrera real: un delete a
+  mitad del mount tiraba `PGRST116`); `disconnect_own_screen()` (la RPC que usa el botón
+  "Disconnect" del propio overlay del visor) pasó de `UPDATE` a `DELETE ... RETURNING *`.
+- **El bloqueante real no era de código:** `alter table screens replica identity full;`
+  — sin esto, Postgres solo manda la PK en el `old` row del WAL de un `DELETE`, y como
+  el visor filtra su canal por `device_uuid` (no la PK), el evento nunca hubiera
+  llegado. Corrido a mano en el SQL Editor del proyecto real (agregar también a
+  `weluk-schema.sql` si no está).
+- **Validado en hardware real:** borrar la fila desde Table Editor con la TV
+  reproduciendo → vuelve a pairing sin recargar; usar "Disconnect" del overlay → la fila
+  desaparece por completo (ya no queda huérfana en `disconnected`); re-vincular después
+  → limpio.
+
+### ✅ Media: selección múltiple para agregar/eliminar, ya no acción directa por click (30 julio 2026)
+
+`MediaGrid.vue` (compartido por el tab Media y el picker dentro de una playlist) cambió
+el patrón de interacción: un click en una card ya no ejecuta nada directo — **selecciona**
+(borde resaltado), y aparece una barra con la acción según el modo:
+
+- **Modo `pick`** (dentro de una playlist): "Agregar N a la lista" + "Eliminar N" (los
+  dos — mantiene la paridad de capacidades entre picker y tab Media ya documentada
+  arriba, estilo WordPress Media Library).
+- **Modo `browse`** (tab Media): solo "Eliminar N".
+- El ícono de tacho por-card se sacó, reemplazado por este flujo. Ambos botones muestran
+  spinner + texto ("Agregando…"/"Eliminando…") mientras corren, con estado propio
+  (`bulkAdding`/`bulkDeleting`) separado del `loading` del composable (que se pisaba
+  entre archivos al correr en paralelo).
+- Confirm de "Eliminar N" usa un nivel intermedio, no el detalle por archivo de antes:
+  una sola query (`anyPlaylistsUsing`) chequea si *alguno* del lote está en uso en
+  cualquier playlist; si es así, agrega un aviso genérico ("se quitarán de ahí, y las
+  publicadas se actualizarán solas") sin mapear archivo↔playlist — con varios archivos
+  ese detalle se vuelve ilegible, y el trigger `trg_notify_playlists_on_media_delete` ya
+  resuelve la republicación real sin código extra de por medio.
+- Subida también pasó a multi-select con cola (`input multiple` + concurrencia limitada
+  a 3, sin librerías nuevas) — `useUploadMedia.uploadMedia()` dejó de tener estado
+  global de `loading`/`error` (se pisaba entre archivos en paralelo) y ahora devuelve
+  `{ media, error }` por llamada. Cards de la cola muestran skeleton + spinner mientras
+  suben, sin mostrar el peso del archivo (es pre-optimización, no coincide con el
+  tamaño final tras pasar por WebP — se sacó para no confundir).
+- En el picker, al terminar de agregar (`onAdded` en `PlaylistDetailView.vue`), el
+  dialog espera a que `fetchItems`/`fetchPlaylist` confirmen el nuevo estado antes de
+  cerrarse — no se cierra en falso sobre una lista todavía desactualizada.
+
+### 🐛 Fix: reordenar/editar duración no marcaba "Cambios sin publicar" (30 julio 2026)
+
+El trigger `trg_touch_playlist_updated_at` (ver más abajo) ya tocaba correctamente
+`playlists.updated_at` en cualquier `UPDATE` sobre `playlist_items`, incluyendo
+reordenar y cambiar duración — el dato en la base siempre estuvo bien. El bug era
+puramente de front: `onReorder` y `onDurationChange` en `PlaylistDetailView.vue` nunca
+llamaban a `fetchPlaylist()` después de la mutación (a diferencia de agregar/quitar
+ítems, que sí lo hacían), así que el `playlist` en memoria del panel — de donde sale el
+badge de estado — quedaba con un `updated_at` viejo. Fix: agregar `await
+fetchPlaylist()` en ambos handlers, mismo patrón que ya usaban los otros cuatro. También
+se ajustó `usePlaylistItems.fetchItems()` para solo activar el skeleton de carga cuando
+la lista está vacía (carga inicial real) — antes tapaba la lista completa con 3
+placeholders fijos en cada refetch (agregar/reordenar/etc.), generando un flash
+innecesario aunque hubiera 5+ ítems ya cargados.
+
 ### Recordatorio: el `.sql` no se aplica solo
 
 `weluk-schema.sql` es un archivo de texto, nadie lo ejecuta. Cada cambio hay que correrlo
@@ -1021,7 +1114,21 @@ sigue abierto (de solo lectura, cerrarlo requiere darle identidad real a cada di
 acceso en un solo lugar en vez de tocar 18 policies sueltas, más un overlay de "Cuenta
 deshabilitada" en `AdminLayout.vue` (aviso visual, la seguridad real la hace RLS). SQL
 corrido y confirmado en el proyecto Supabase real (única company existente, activa, sin
-impacto). Con esto, los dos pendientes de seguridad de la sección 12 quedan resueltos._
+impacto). Con esto, los dos pendientes de seguridad de la sección 12 quedan resueltos.
+
+**Actualización 30 julio 2026 (5):** revisión de flujos vs. Juuno y tres cierres de
+ciclo cross-repo. (a) "Eliminar pantalla" pasó de dos pasos a uno solo — requirió fix en
+`weluk-browser` (manejo de evento `DELETE` por Realtime, `.maybeSingle()`,
+`disconnect_own_screen` ahora borra) más `alter table screens replica identity full;`
+en Supabase, sin el cual el evento `DELETE` nunca le hubiera llegado al visor (ver
+gotcha nuevo en sección 14). (b) Presence quedó implementado de punta a punta — cerrada
+la brecha de la sección 13 — reusando el canal `screen-${device_uuid}` que ya existía,
+sin conexiones ni costo nuevo (verificado contra el dashboard real: 119/2M mensajes);
+`screens.last_seen_at` sigue sin escribirse, ver sección 5. (c) Media pasó de subida y
+borrado de a uno a multi-select con cola y confirm agregado (no por-archivo) — ver
+sección 14. De paso, fix de un bug de UX real: reordenar ítems o editar su duración no
+marcaba "Cambios sin publicar" en el badge (el dato en la base siempre estuvo bien, el
+front no refrescaba `playlist.updated_at` después de esas dos acciones)._
 
 ```
 
