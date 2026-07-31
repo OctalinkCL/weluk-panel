@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { optimizeImage } from '../lib/imageOptimize'
+import { optimizeImage, createImageThumbnail } from '../lib/imageOptimize'
 import { readVideoDuration } from '../lib/videoMetadata'
 import { captureVideoThumbnail } from '../lib/videoThumbnail'
 import type { Media, MediaType } from '@/types/media'
@@ -40,7 +40,8 @@ export function useUploadMedia() {
 
     const optimizedFile = mediaType === 'image' ? await optimizeImage(file) : file
     const durationSeconds = mediaType === 'video' ? await readVideoDuration(optimizedFile) : null
-    const thumbnailBlob = mediaType === 'video' ? await captureVideoThumbnail(optimizedFile) : null
+    const thumbnailBlob =
+      mediaType === 'video' ? await captureVideoThumbnail(optimizedFile) : await createImageThumbnail(optimizedFile)
 
     const baseName = sanitizeFileName(optimizedFile.name)
     const storagePath = `${companyId}/${crypto.randomUUID()}-${baseName}`

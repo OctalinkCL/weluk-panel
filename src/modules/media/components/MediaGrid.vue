@@ -247,8 +247,8 @@ async function onBulkDelete() {
       >
         <div class="aspect-video bg-muted flex items-center justify-center">
           <img
-            v-if="item.type === 'image' || item.thumbnail_path"
-            :src="getMediaPublicUrl(item.type === 'image' ? item.storage_path : item.thumbnail_path!)"
+            v-if="item.thumbnail_path || item.type === 'image'"
+            :src="getMediaPublicUrl(item.thumbnail_path ?? item.storage_path)"
             class="size-full object-cover"
           />
           <Video v-else class="size-6 text-muted-foreground" />

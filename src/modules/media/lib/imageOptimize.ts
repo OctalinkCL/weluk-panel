@@ -1,23 +1,15 @@
+import { resizeToWebp } from './resizeToWebp'
+
 const MAX_DIMENSION = 1920
 const QUALITY = 0.8
+
+const THUMB_DIMENSION = 480
+const THUMB_QUALITY = 0.75
 
 export async function optimizeImage(file: File): Promise<File> {
   try {
     const bitmap = await createImageBitmap(file)
-
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
-    const width = Math.round(bitmap.width * scale)
-    const height = Math.round(bitmap.height * scale)
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-
-    ctx.drawImage(bitmap, 0, 0, width, height)
-
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', QUALITY))
+    const blob = await resizeToWebp(bitmap, bitmap.width, bitmap.height, MAX_DIMENSION, QUALITY)
     if (!blob) return file
 
     const optimizedName = file.name.replace(/\.[^.]+$/, '') + '.webp'
@@ -25,5 +17,17 @@ export async function optimizeImage(file: File): Promise<File> {
   } catch (err) {
     console.error('[optimizeImage] no se pudo optimizar, se sube el original:', err)
     return file
+  }
+}
+
+// Best-effort, mismo criterio que captureVideoThumbnail: si falla, la imagen
+// igual se sube y el panel cae al original (thumbnail_path queda null).
+export async function createImageThumbnail(file: File): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    return await resizeToWebp(bitmap, bitmap.width, bitmap.height, THUMB_DIMENSION, THUMB_QUALITY)
+  } catch (err) {
+    console.error('[createImageThumbnail] no se pudo generar el thumbnail:', err)
+    return null
   }
 }
