@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { supabase } from '@/lib/supabase'
+import { useCurrentCompanyStore } from './currentCompany'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/types/profile'
 
@@ -12,7 +13,13 @@ export const useAuthStore = defineStore('auth', () => {
   const role = computed(() => profile.value?.role)
 
   async function fetchProfile(userId: string) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    // `company:companies(slug)` — homeForRole/guards.ts necesitan el slug de
+    // la company propia para armar `/c/:companySlug`, no solo el company_id.
+    const { data } = await supabase
+      .from('profiles')
+      .select('*, company:companies(slug)')
+      .eq('id', userId)
+      .single()
     profile.value = data as Profile | null
   }
 
@@ -51,6 +58,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await supabase.auth.signOut()
     profile.value = null
+    // Evita que una sesión nueva en la misma pestaña reuse por accidente la
+    // company cacheada de la sesión anterior (ver useCurrentCompanyStore).
+    useCurrentCompanyStore().reset()
   }
 
   async function updatePassword(password: string) {

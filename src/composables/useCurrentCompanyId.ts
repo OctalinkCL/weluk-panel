@@ -1,19 +1,14 @@
 import { computed, type ComputedRef } from 'vue'
-import { useRoute } from 'vue-router'
+import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
 /**
- * De qué company son los datos que la vista actual debe mostrar.
- *
- * Las vistas de `src/modules/*` viven bajo `/c/:companyId/*` (workspace.routes.ts)
- * y las comparten `superadmin` y `company_admin` por igual — un company_admin
- * siempre navega su propia company (el guard lo fuerza), un superadmin la
- * elige con el switcher del sidebar. Como el id siempre está en la URL para
- * los dos roles, esto es una lectura directa, no un fallback.
- *
- * Ojo: esto es scoping de UI, no seguridad. El aislamiento real entre clientes
- * lo hacen las policies de RLS (`auth_active_company_id()`).
+ * El id real (uuid) de la company actual — para queries a Supabase (FKs,
+ * RLS). Nunca se lee de la URL directamente: la URL lleva el slug
+ * (`/c/:companySlug/*`), que guards.ts resuelve una vez por navegación a la
+ * fila real (ver useCurrentCompanyStore). Para armar links a otras vistas de
+ * la misma company, ver useCurrentCompanySlug().
  */
 export function useCurrentCompanyId(): ComputedRef<string | null> {
-  const route = useRoute()
-  return computed(() => (route.params.companyId as string | undefined) ?? null)
+  const store = useCurrentCompanyStore()
+  return computed(() => store.company?.id ?? null)
 }

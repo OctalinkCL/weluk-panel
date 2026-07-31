@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   DropdownMenu,
@@ -11,7 +10,7 @@ import {
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar'
 import { Building2, ChevronsUpDown, Check, Settings } from '@lucide/vue'
 import { useCompanies } from '@/modules/companies/composables/useCompanies'
-import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
+import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
 // Solo para superadmin: reemplaza "salir a Companies y volver a entrar" por
 // cambiar de cliente sin perder el sidebar/layout. company_admin nunca ve
@@ -19,21 +18,17 @@ import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 const route = useRoute()
 const router = useRouter()
 const { companies, loading } = useCompanies()
-const currentCompanyId = useCurrentCompanyId()
-
-const currentCompany = computed(() =>
-  companies.value.find((c) => c.id === currentCompanyId.value) ?? null,
-)
+const companyStore = useCurrentCompanyStore()
 
 // Rutas company-scoped (ver workspace.routes.ts). Si estamos en una que no lo
 // es (ej. admin-companies) o en el detalle de una playlist de la company
 // vieja, cambiar de cliente cae a Screens en vez de arrastrar el sub-path.
 const COMPANY_SCOPED_ROUTES = new Set(['screens', 'playlists', 'media', 'users'])
 
-function selectCompany(companyId: string) {
+function selectCompany(slug: string) {
   const routeName =
     typeof route.name === 'string' && COMPANY_SCOPED_ROUTES.has(route.name) ? route.name : 'screens'
-  router.push({ name: routeName, params: { companyId } })
+  router.push({ name: routeName, params: { companySlug: slug } })
 }
 </script>
 
@@ -44,7 +39,7 @@ function selectCompany(companyId: string) {
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton size="lg">
             <Building2 class="size-4 shrink-0" />
-            <span class="truncate">{{ currentCompany?.name ?? 'Elegir company' }}</span>
+            <span class="truncate">{{ companyStore.company?.name ?? 'Elegir company' }}</span>
             <ChevronsUpDown class="ml-auto size-4 shrink-0 text-muted-foreground" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
@@ -53,9 +48,9 @@ function selectCompany(companyId: string) {
           <DropdownMenuItem
             v-for="company in companies"
             :key="company.id"
-            @select="selectCompany(company.id)"
+            @select="selectCompany(company.slug)"
           >
-            <Check v-if="company.id === currentCompanyId" class="size-4" />
+            <Check v-if="company.id === companyStore.company?.id" class="size-4" />
             <span v-else class="size-4" />
             <span class="truncate">{{ company.name }}</span>
             <span

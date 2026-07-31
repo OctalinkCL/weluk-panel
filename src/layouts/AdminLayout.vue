@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useCompanyStatus } from '@/modules/companies/composables/useCompanyStatus'
+import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { isActive, checked, fetchStatus } = useCompanyStatus()
-
-// Solo aplica a company_admin viendo SU PROPIA company — un superadmin navegando
-// el detalle de una company deshabilitada (para reactivarla) nunca debe bloquearse.
-onMounted(() => {
-  if (authStore.role === 'company_admin' && authStore.profile?.company_id) {
-    fetchStatus(authStore.profile.company_id)
-  }
-})
+// guards.ts ya resolvió la company de la URL antes de entrar acá — sin fetch
+// propio, sin estado de "checked" (antes useCompanyStatus lo pedía aparte).
+const companyStore = useCurrentCompanyStore()
 
 async function onLogout() {
   await authStore.logout()
@@ -45,7 +38,7 @@ async function onLogout() {
     devuelven cero filas para una company deshabilitada, con o sin este overlay.
   -->
   <div
-    v-if="authStore.role === 'company_admin' && checked && !isActive"
+    v-if="authStore.role === 'company_admin' && companyStore.company && !companyStore.company.is_active"
     class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6"
   >
     <div class="max-w-sm text-center grid gap-3">

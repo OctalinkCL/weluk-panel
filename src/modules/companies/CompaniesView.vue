@@ -20,8 +20,8 @@ const { toggleCompany, loading: toggling } = useToggleCompany()
 const editOpen = ref(false)
 const selectedCompany = ref<Company | null>(null)
 
-function goToDetail(id: string) {
-  router.push({ name: 'screens', params: { companyId: id } })
+function goToDetail(slug: string) {
+  router.push({ name: 'screens', params: { companySlug: slug } })
 }
 
 function openEdit(company: Company) {
@@ -77,7 +77,7 @@ async function onToggle(company: Company) {
             v-for="company in companies"
             :key="company.id"
             class="cursor-pointer"
-            @click="goToDetail(company.id)"
+            @click="goToDetail(company.slug)"
           >
             <TableCell class="font-medium flex items-center gap-2">
               {{ company.name }}

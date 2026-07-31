@@ -12,6 +12,7 @@ create extension if not exists "pgcrypto";
 create table companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  slug text not null unique, -- URL del panel (/c/:slug/...) — el id real nunca sale del código, ver useCurrentCompanyId
   is_active boolean not null default true, -- soft-disable (ej. no pago) — nunca se borra la company
   created_at timestamptz not null default now()
 );

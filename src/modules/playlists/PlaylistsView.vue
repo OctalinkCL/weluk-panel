@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
+import { useCurrentCompanySlug } from '@/composables/useCurrentCompanySlug'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -13,14 +14,15 @@ import { formatDate } from '@/lib/utils'
 import type { Playlist } from '@/types/playlist'
 
 const router = useRouter()
-// La vista se monta por ruta, así que el id no cambia mientras vive: se toma
-// una vez (`usePlaylists` recibe un string, no un ref).
+// La vista se monta por ruta, así que ninguno de los dos cambia mientras
+// vive: se toman una vez (`usePlaylists` recibe un string, no un ref).
 const companyId = useCurrentCompanyId().value!
+const companySlug = useCurrentCompanySlug().value!
 const { playlists, loading, error, fetchPlaylists } = usePlaylists(companyId)
 const { deletePlaylist, getScreensUsing, loading: deleting } = useDeletePlaylist()
 
 function goToDetail(playlistId: string) {
-  router.push({ name: 'playlist-detail', params: { companyId, playlistId } })
+  router.push({ name: 'playlist-detail', params: { companySlug, playlistId } })
 }
 
 async function onDelete(playlist: Playlist) {

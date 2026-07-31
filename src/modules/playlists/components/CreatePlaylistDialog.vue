@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCurrentCompanySlug } from '@/composables/useCurrentCompanySlug'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -17,6 +18,7 @@ import { useCreatePlaylist } from '../composables/useCreatePlaylist'
 const props = defineProps<{ companyId: string }>()
 
 const router = useRouter()
+const companySlug = useCurrentCompanySlug()
 const open = ref(false)
 const name = ref('')
 const { createPlaylist, loading, error } = useCreatePlaylist()
@@ -26,7 +28,7 @@ async function onSubmit() {
   if (playlist) {
     name.value = ''
     open.value = false
-    router.push({ name: 'playlist-detail', params: { companyId: props.companyId, playlistId: playlist.id } })
+    router.push({ name: 'playlist-detail', params: { companySlug: companySlug.value, playlistId: playlist.id } })
   }
 }
 </script>
