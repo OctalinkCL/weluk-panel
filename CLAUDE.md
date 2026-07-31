@@ -471,10 +471,11 @@ nunca `http://<ip-lan>:5173` ni `:4173`. En HTTP plano por IP no hay caché de m
 (ni `crypto.randomUUID`), así que cualquier prueba de consumo ahí no representa
 producción y además quema egress real.
 
-**Pendiente para el `panel`:** subir los medios con `cacheControl: '31536000'` — el
-`storage_path` es inmutable por archivo, así que el caché HTTP del navegador sirve de
-red de seguridad bajo la Cache API. Y el "Cached Egress" del dashboard de Supabase es
-egress servido desde su CDN: **igual se factura**, no salva nada.
+**✅ Resuelto (31 julio 2026):** `panel` sube los medios con `cacheControl: '31536000'`
+(`useUploadMedia.ts`) — el `storage_path` es inmutable por archivo, así que el caché HTTP
+del navegador sirve de red de seguridad bajo la Cache API. Ojo: el "Cached Egress" del
+dashboard de Supabase es egress servido desde su CDN: **igual se factura**, no salva nada
+por sí solo — lo que realmente evita el re-cobro es el caché del navegador del cliente.
 
 **Nota de corrección (27 julio 2026):** una playlist con **un solo ítem** no
 loopeaba — el índice `(0 + 1) % 1 = 0` no cambia de valor, así que nada disparaba el
@@ -876,6 +877,48 @@ Reglas acordadas, **no romper sin preguntar**:
   Requiere `alter table media add column thumbnail_path text;` corrido a mano en el
   proyecto real antes de que esto funcione (ver recordatorio de `.sql` al final de esta
   sección).
+- **Thumbnail también para imágenes + preview de playlist en `ScreensView` (31 julio
+  2026, después de lo anterior):** el generador de thumbnails de video se refactorizó a
+  una primitiva compartida (`resizeToWebp.ts` — escala por el lado más largo, dibuja en
+  canvas, exporta a WebP) usada por `optimizeImage` (1920px, el original que sigue
+  siendo lo que consume el player), la nueva `createImageThumbnail` (480px, mismo
+  tamaño que ya usaba video) y `captureVideoThumbnail`. De paso corrigió un bug real
+  que apareció al unificar: el thumbnail de video escalaba solo por ancho, así que un
+  video vertical salía deforme/desproporcionado — ahora escala por el lado más largo,
+  igual que las imágenes. `useUploadMedia.ts` ahora genera thumbnail también al subir
+  una imagen (antes solo video), mismo criterio best-effort (si falla, `thumbnail_path`
+  queda `null`, nunca bloquea la subida). Los call sites de render (`MediaGrid.vue`,
+  `PlaylistDetailView.vue`) pasaron de ramificar por `type` a `thumbnail_path ??
+  storage_path` — las imágenes viejas sin thumbnail caen solas al original sin código
+  extra, sin backfill retroactivo (mismo criterio incremental del resto del proyecto).
+  `useDeleteMedia.ts` no necesitó cambios: ya limpiaba `thumbnail_path` sin mirar el
+  tipo. Motivo del cambio: no es ahorro de egress (`cacheControl: 31536000` ya lo cubre
+  para visitas repetidas, ver sección 7) sino **tiempo de carga en frío** — la primera
+  vez que se abre el tab Media o el detalle de una playlist, antes se bajaban imágenes
+  de 1920px para pintar cards chicas (~6 MB para 20 archivos); con thumbnail son ~700
+  KB. — **`ScreensView.vue`** suma, en la misma tabla (sin cards, sin conteo de slides,
+  decisión explícita para mantener el scope chico), un thumbnail de 32px en la celda
+  Playlist: `useScreens.ts` extiende el `select` existente con
+  `playlist_items(order_index, media(thumbnail_path))` anidado — sigue siendo una sola
+  request, sin costo de DB adicional (Supabase no cobra por complejidad de query, solo
+  egress/storage/conexiones). `screenThumbnailPath()` toma cualquier ítem que tenga
+  `thumbnail_path` (no importa cuál — es solo un vistazo, no una preview fiel de lo
+  publicado) y cae al ícono genérico si la playlist no tiene ítems o son todos de antes
+  del generador de thumbnails — **nunca** al original de 1920px, que sería descargar
+  justo lo que este cambio evita. **Caveat de producto a tener presente:** el thumbnail
+  sale de `playlist_items` (el borrador), no de `published_at` — si alguien reordena o
+  cambia contenido sin publicar, la miniatura puede no coincidir con lo que la TV está
+  mostrando ahora mismo. Aceptado a propósito para este alcance (decisión explícita:
+  "no importa qué slide se muestre"), pero si se malinterpreta como "esto es lo que se
+  ve en vivo" habría que resolverlo con algo más caro (snapshot publicado, sección 14
+  "Qué falta"). — **Evaluado y descartado (mismo día):** llevar la asignación de
+  playlist a un `Select` inline en esta misma fila (ver referencia visual de Juuno, que
+  combina playlists y schedules en un solo dropdown). Motivo del descarte: la capacidad
+  ya existe del lado inverso (`AssignScreensDialog`, playlist → pantallas) y no hay
+  nada bloqueado; sumar el camino inverso solo para conveniencia hubiera duplicado la
+  lógica de auto-publish (`useAssignPlaylistScreens.ts`, el gotcha de RLS de más abajo)
+  en un segundo composable, y el diseño del picker cambia de nuevo cuando llegue
+  Schedule (pendiente en la sección 9, punto 5). Se prefirió no construirlo dos veces.
 - **Panel de `company_admin` (real, ya no placeholder)** — rutas propias en
   `router/company-admin.routes.ts`, montadas bajo `/company/*` con el mismo
   `AdminLayout` que `superadmin`: `company-screens` (home), `company-playlists`,
@@ -1166,7 +1209,24 @@ el "Global file size limit" del proyecto (ese sí queda fijo en 50 MB en el plan
 pide Pro para subirlo; bajar el límite de un bucket puntual por debajo del global no
 requiere Pro). Evaluado también comprimir video del lado del cliente (`ffmpeg.wasm`) o
 server-side — descartado por ahora: el contenido real esperado (sección 7) son videos de
-5-7 MB, muy por debajo del cap, así que no hay problema real que resolver todavía._
+5-7 MB, muy por debajo del cap, así que no hay problema real que resolver todavía.
+
+**Actualización 31 julio 2026 (2):** thumbnail extendido a imágenes (antes solo video) y
+mostrado en `ScreensView` (sección 14). Se extrajo la primitiva compartida
+`resizeToWebp.ts` para no duplicar el canvas de resize entre `imageOptimize.ts` y
+`videoThumbnail.ts` — de paso corrigió que el thumbnail de video escalaba solo por
+ancho (video vertical salía deforme). Los call sites de render pasaron de ramificar por
+`type` a `thumbnail_path ?? storage_path`. Motivo real: no egress (`cacheControl` de un
+año ya lo cubre, sección 7, marcado como resuelto en esta misma actualización) sino
+tiempo de carga en frío (~6 MB → ~700 KB en la primera visita al tab Media con 20
+archivos). La tabla de `ScreensView` ahora muestra un thumbnail de 32px junto al nombre
+de la playlist asignada (cualquier ítem con `thumbnail_path`, sin importar cuál — no es
+snapshot de lo publicado, ver caveat en sección 14) sin costo de DB adicional (mismo
+`select` con un embed más). Evaluado y descartado, mismo día: `Select` inline en esa
+fila para reasignar playlist directo desde `ScreensView` — hubiera duplicado la lógica
+de auto-publish de `useAssignPlaylistScreens.ts` en un segundo composable sin resolver
+ninguna capacidad nueva (el camino inverso, playlist → pantallas, ya existe), y su
+diseño se reabre de nuevo cuando llegue Schedule (sección 9, punto 5)._
 
 ```
 
