@@ -36,6 +36,7 @@ create table media (
   company_id uuid not null references companies(id) on delete cascade,
   type text not null check (type in ('image', 'video')),
   storage_path text not null,
+  thumbnail_path text, -- solo video: frame capturado al subir, null si falló o si es imagen
   duration_seconds integer not null default 8, -- default de reproducción para imágenes
   created_at timestamptz not null default now()
 );

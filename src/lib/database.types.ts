@@ -66,6 +66,7 @@ export type Database = {
           company_id: string
           type: string
           storage_path: string
+          thumbnail_path: string | null
           duration_seconds: number
           created_at: string
         }
@@ -74,6 +75,7 @@ export type Database = {
           company_id: string
           type: string
           storage_path: string
+          thumbnail_path?: string | null
           duration_seconds?: number
           created_at?: string
         }
@@ -82,6 +84,7 @@ export type Database = {
           company_id?: string
           type?: string
           storage_path?: string
+          thumbnail_path?: string | null
           duration_seconds?: number
           created_at?: string
         }

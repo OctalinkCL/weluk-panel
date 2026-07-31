@@ -32,11 +32,12 @@ export function useDeleteMedia() {
       return false
     }
 
-    const { data: removed, error: storageErr } = await supabase.storage.from('media').remove([item.storage_path])
+    const pathsToRemove = [item.storage_path, ...(item.thumbnail_path ? [item.thumbnail_path] : [])]
+    const { data: removed, error: storageErr } = await supabase.storage.from('media').remove(pathsToRemove)
 
     loading.value = false
 
-    if (storageErr || !removed || removed.length === 0) {
+    if (storageErr || !removed || removed.length < pathsToRemove.length) {
       // la fila ya se borró (por eso desaparece de la lista), pero el archivo real
       // quedó huérfano en Storage — avisar en vez de fallar en silencio
       error.value = `El registro se eliminó, pero el archivo en Storage no se pudo borrar${storageErr ? `: ${storageErr.message}` : ''}.`
