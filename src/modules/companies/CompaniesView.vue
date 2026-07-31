@@ -21,7 +21,7 @@ const editOpen = ref(false)
 const selectedCompany = ref<Company | null>(null)
 
 function goToDetail(id: string) {
-  router.push({ name: 'admin-screens', params: { id } })
+  router.push({ name: 'screens', params: { companyId: id } })
 }
 
 function openEdit(company: Company) {

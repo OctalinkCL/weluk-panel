@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -9,8 +9,9 @@ import InviteUserDialog from './components/InviteUserDialog.vue'
 import { formatDate } from '@/lib/utils'
 import type { Role } from '@/types/profile'
 
-const route = useRoute()
-const companyId = route.params.id as string
+// La ruta `users` es solo de superadmin (workspace.routes.ts), así que el id
+// siempre viene en la URL.
+const companyId = useCurrentCompanyId().value!
 const { users, loading, error, fetchUsers } = useUsers(companyId)
 
 const ROLE_LABEL: Record<Role, string> = {

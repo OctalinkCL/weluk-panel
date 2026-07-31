@@ -18,7 +18,7 @@ async function onSubmit() {
   error.value = null
   try {
     await authStore.login(email.value, password.value)
-    router.push({ name: homeForRole(authStore.role) })
+    router.push(homeForRole(authStore.role, authStore.profile?.company_id))
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo iniciar sesión.'
   } finally {

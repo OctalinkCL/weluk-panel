@@ -24,7 +24,7 @@ async function onSubmit() {
   loading.value = true
   try {
     await authStore.updatePassword(password.value)
-    router.push({ name: homeForRole(authStore.role) })
+    router.push(homeForRole(authStore.role, authStore.profile?.company_id))
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo definir la contraseña.'
   } finally {

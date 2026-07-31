@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -12,7 +12,6 @@ import CreatePlaylistDialog from './components/CreatePlaylistDialog.vue'
 import { formatDate } from '@/lib/utils'
 import type { Playlist } from '@/types/playlist'
 
-const route = useRoute()
 const router = useRouter()
 // La vista se monta por ruta, así que el id no cambia mientras vive: se toma
 // una vez (`usePlaylists` recibe un string, no un ref).
@@ -21,11 +20,7 @@ const { playlists, loading, error, fetchPlaylists } = usePlaylists(companyId)
 const { deletePlaylist, getScreensUsing, loading: deleting } = useDeletePlaylist()
 
 function goToDetail(playlistId: string) {
-  if (route.params.id) {
-    router.push({ name: 'admin-playlist-detail', params: { id: companyId, playlistId } })
-  } else {
-    router.push({ name: 'company-playlist-detail', params: { playlistId } })
-  }
+  router.push({ name: 'playlist-detail', params: { companyId, playlistId } })
 }
 
 async function onDelete(playlist: Playlist) {

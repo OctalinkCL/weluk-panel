@@ -1,6 +1,8 @@
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import type { RouteRecordRaw } from 'vue-router'
 
+// Gestión de clientes en sí (crear/deshabilitar companies) — distinto de
+// operar como un cliente, que vive en workspace.routes.ts (`/c/:companyId`).
 export const superadminRoutes: RouteRecordRaw[] = [
   {
     path: '/admin',
@@ -12,42 +14,6 @@ export const superadminRoutes: RouteRecordRaw[] = [
         name: 'admin-companies',
         meta: { roles: ['superadmin'] },
         component: () => import('@/modules/companies/CompaniesView.vue'),
-      },
-      {
-        path: 'companies/:id',
-        meta: { roles: ['superadmin'] },
-        component: () => import('@/layouts/CompanyDetailLayout.vue'),
-        children: [
-          {
-            path: '',
-            redirect: (to) => ({ name: 'admin-screens', params: to.params }),
-          },
-          {
-            path: 'screens',
-            name: 'admin-screens',
-            component: () => import('@/modules/screens/ScreensView.vue'),
-          },
-          {
-            path: 'playlists',
-            name: 'admin-playlists',
-            component: () => import('@/modules/playlists/PlaylistsView.vue'),
-          },
-          {
-            path: 'playlists/:playlistId',
-            name: 'admin-playlist-detail',
-            component: () => import('@/modules/playlists/PlaylistDetailView.vue'),
-          },
-          {
-            path: 'media',
-            name: 'admin-media',
-            component: () => import('@/modules/media/MediaView.vue'),
-          },
-          {
-            path: 'users',
-            name: 'admin-users',
-            component: () => import('@/modules/users/UsersView.vue'),
-          },
-        ],
       },
     ],
   },

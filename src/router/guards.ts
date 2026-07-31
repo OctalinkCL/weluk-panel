@@ -9,9 +9,20 @@ export const authGuard: NavigationGuard = (to) => {
     return { name: 'login' }
   }
   if (to.name === 'login' && authStore.isAuthenticated) {
-    return { name: homeForRole(authStore.role) }
+    return homeForRole(authStore.role, authStore.profile?.company_id)
   }
   if (to.meta.roles && !to.meta.roles.includes(authStore.role!)) {
-    return { name: homeForRole(authStore.role) }
+    return homeForRole(authStore.role, authStore.profile?.company_id)
+  }
+  // company_admin solo puede navegar su propia company bajo `/c/:companyId` —
+  // el id en la URL es de navegación, la seguridad real la hace RLS
+  // (auth_active_company_id()), pero esto evita que un link a mano o un typo
+  // lo deje mirando (sin datos) la pantalla de otro cliente.
+  if (
+    authStore.role === 'company_admin' &&
+    typeof to.params.companyId === 'string' &&
+    to.params.companyId !== authStore.profile?.company_id
+  ) {
+    return homeForRole(authStore.role, authStore.profile?.company_id)
   }
 }

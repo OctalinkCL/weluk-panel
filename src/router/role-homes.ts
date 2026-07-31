@@ -1,10 +1,12 @@
+import type { RouteLocationRaw } from 'vue-router'
 import type { Role } from '@/types/profile'
 
-const ROLE_HOME: Partial<Record<Role, string>> = {
-  superadmin: 'admin-companies',
-  company_admin: 'company-screens',
-}
-
-export function homeForRole(role: Role | undefined): string {
-  return (role && ROLE_HOME[role]) ?? 'login'
+// A dónde mandar a cada rol tras login/redirect. company_admin necesita su
+// companyId en la URL (workspace.routes.ts vive bajo `/c/:companyId`); si
+// todavía no cargó el profile, cae a login — no debería pasar en la práctica
+// porque el guard ya exige sesión antes de llegar acá.
+export function homeForRole(role: Role | undefined, companyId?: string | null): RouteLocationRaw {
+  if (role === 'superadmin') return { name: 'admin-companies' }
+  if (role === 'company_admin' && companyId) return { name: 'screens', params: { companyId } }
+  return { name: 'login' }
 }
