@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, watch as watchEffect } from 'vue'
-import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { ref, computed, watch } from 'vue'
+import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -12,17 +11,16 @@ import { useDeleteScreen } from './composables/useDeleteScreen'
 import { useScreenPresence } from './composables/useScreenPresence'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import EditScreenDialog from './components/EditScreenDialog.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { Screen, ScreenStatus } from '@/types/screen'
 
-const route = useRoute()
-const authStore = useAuthStore()
-const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
+const companyId = useCurrentCompanyId()
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
-const { deleteScreen, loading: deleting } = useDeleteScreen()
+const { deleteScreen, loading: deleting, error: deleteError } = useDeleteScreen()
 const { onlineDeviceUuids, sync: syncPresence } = useScreenPresence()
 
-watchEffect(
+watch(
   screens,
   (list) => syncPresence(list.map((screen) => screen.device_uuid)),
   { immediate: true },
@@ -48,15 +46,41 @@ function screenThumbnailPath(screen: Screen) {
   return screen.playlist?.playlist_items.find((item) => item.media?.thumbnail_path)?.media?.thumbnail_path ?? null
 }
 
-async function onDelete(screen: Screen) {
-  if (
-    !confirm(
-      `¿Eliminar "${screen.name}"? Dejará de reproducir contenido y deberá vincularse de nuevo. Otra company podrá vincular este dispositivo.`,
-    )
-  )
-    return
+const rows = computed(() =>
+  screens.value.map((screen) => {
+    const thumbnailPath = screenThumbnailPath(screen)
+    return {
+      screen,
+      statusLabel: STATUS_LABEL[screen.status],
+      isOnline: onlineDeviceUuids.value.has(screen.device_uuid),
+      thumbnailUrl: thumbnailPath ? getMediaPublicUrl(thumbnailPath) : null,
+      playlistName: screen.playlist?.name ?? null,
+    }
+  }),
+)
 
-  await deleteScreen(screen.id)
+const confirmDeleteOpen = ref(false)
+const screenToDelete = ref<Screen | null>(null)
+
+function openDeleteConfirm(screen: Screen) {
+  screenToDelete.value = screen
+  confirmDeleteOpen.value = true
+}
+
+const deleteConfirmDescription = computed(() =>
+  screenToDelete.value
+    ? `¿Eliminar "${screenToDelete.value.name}"? Dejará de reproducir contenido y deberá vincularse de nuevo. Otra company podrá vincular este dispositivo.`
+    : '',
+)
+
+async function onConfirmDelete() {
+  if (!screenToDelete.value) return
+
+  const ok = await deleteScreen(screenToDelete.value.id)
+  if (!ok) return
+
+  confirmDeleteOpen.value = false
+  screenToDelete.value = null
   await fetchScreens()
 }
 </script>
@@ -68,7 +92,7 @@ async function onDelete(screen: Screen) {
         <h2 class="text-lg font-medium">Screens</h2>
         <p class="text-sm text-muted-foreground">Pantallas vinculadas a esta company.</p>
       </div>
-      <PairScreenDialog :company-id="companyId" @paired="fetchScreens" />
+      <PairScreenDialog v-if="companyId" :company-id="companyId" @paired="fetchScreens" />
     </header>
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
@@ -77,7 +101,7 @@ async function onDelete(screen: Screen) {
       <Skeleton class="h-9" v-for="i in 3" :key="i" />
     </div>
 
-    <Empty v-else-if="screens.length === 0">
+    <Empty v-else-if="rows.length === 0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Monitor />
@@ -99,45 +123,47 @@ async function onDelete(screen: Screen) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-for="screen in screens" :key="screen.id">
-            <TableCell class="font-medium">{{ screen.name }}</TableCell>
+          <TableRow v-for="row in rows" :key="row.screen.id">
+            <TableCell class="font-medium">{{ row.screen.name }}</TableCell>
             <TableCell>
               <span class="text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-                {{ STATUS_LABEL[screen.status] }}
+                {{ row.statusLabel }}
               </span>
             </TableCell>
             <TableCell>
-              <span v-if="screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
+              <span v-if="row.screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
               <span v-else class="flex items-center gap-1.5 text-sm">
                 <span
                   class="size-2 rounded-full"
-                  :class="onlineDeviceUuids.has(screen.device_uuid) ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                  :class="row.isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
                 />
-                {{ onlineDeviceUuids.has(screen.device_uuid) ? 'En línea' : 'Sin conexión' }}
+                {{ row.isOnline ? 'En línea' : 'Sin conexión' }}
               </span>
             </TableCell>
             <TableCell>
-              <span v-if="!screen.playlist" class="text-sm text-muted-foreground">Sin playlist</span>
+              <span v-if="!row.playlistName" class="text-sm text-muted-foreground">Sin playlist</span>
               <div v-else class="flex items-center gap-2">
                 <div class="size-8 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0">
                   <img
-                    v-if="screenThumbnailPath(screen)"
-                    :src="getMediaPublicUrl(screenThumbnailPath(screen)!)"
+                    v-if="row.thumbnailUrl"
+                    :src="row.thumbnailUrl"
+                    alt=""
+                    loading="lazy"
                     class="size-full object-cover"
                   />
                   <ImageIcon v-else class="size-4 text-muted-foreground" />
                 </div>
-                <span class="text-sm">{{ screen.playlist.name }}</span>
+                <span class="text-sm">{{ row.playlistName }}</span>
               </div>
             </TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end gap-1">
-                <Button size="sm" variant="ghost" @click="openEdit(screen)">
+                <Button size="sm" variant="ghost" @click="openEdit(row.screen)">
                   <Pencil class="size-4" />
                   Editar
                 </Button>
                 <Button size="sm" variant="ghost" class="text-destructive hover:text-destructive"
-                  :disabled="deleting" @click="onDelete(screen)">
+                  :disabled="deleting" @click="openDeleteConfirm(row.screen)">
                   <Trash2 class="size-4" />
                   Eliminar
                 </Button>
@@ -150,4 +176,13 @@ async function onDelete(screen: Screen) {
   </div>
 
   <EditScreenDialog v-model:open="editOpen" :screen="selectedScreen" @updated="fetchScreens" />
+
+  <ConfirmDialog
+    v-model:open="confirmDeleteOpen"
+    title="Eliminar pantalla"
+    :description="deleteConfirmDescription"
+    :loading="deleting"
+    :error="deleteError"
+    @confirm="onConfirmDelete"
+  />
 </template>

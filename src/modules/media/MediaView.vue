@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import MediaGrid from './components/MediaGrid.vue'
 
-const route = useRoute()
-const authStore = useAuthStore()
-const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
+const companyId = useCurrentCompanyId()
 </script>
 
 <template>
@@ -15,6 +12,6 @@ const companyId = (route.params.id as string | undefined) ?? authStore.profile!.
       <p class="text-sm text-muted-foreground">Biblioteca de contenido de esta company.</p>
     </header>
 
-    <MediaGrid :company-id="companyId" />
+    <MediaGrid v-if="companyId" :company-id="companyId" />
   </div>
 </template>

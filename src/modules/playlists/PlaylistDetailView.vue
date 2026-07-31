@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,8 +21,8 @@ import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
 
 const route = useRoute()
-const authStore = useAuthStore()
-const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
+// La vista se monta por ruta, así que el id no cambia mientras vive.
+const companyId = useCurrentCompanyId().value!
 const playlistId = route.params.playlistId as string
 
 const { playlist, loading: loadingPlaylist, fetchPlaylist } = usePlaylist(playlistId)

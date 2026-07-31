@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -14,8 +14,9 @@ import type { Playlist } from '@/types/playlist'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
-const companyId = (route.params.id as string | undefined) ?? authStore.profile!.company_id!
+// La vista se monta por ruta, así que el id no cambia mientras vive: se toma
+// una vez (`usePlaylists` recibe un string, no un ref).
+const companyId = useCurrentCompanyId().value!
 const { playlists, loading, error, fetchPlaylists } = usePlaylists(companyId)
 const { deletePlaylist, getScreensUsing, loading: deleting } = useDeletePlaylist()
 
