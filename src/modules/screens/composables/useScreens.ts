@@ -12,7 +12,9 @@ export function useScreens(companyId: string) {
     error.value = null
     const { data, error: err } = await supabase
       .from('screens')
-      .select('*, playlist:playlists(name)')
+      .select(
+        '*, playlist:playlists(name, playlist_items(order_index, media(thumbnail_path)))',
+      )
       .eq('company_id', companyId)
       .order('created_at', { ascending: false })
     if (err) error.value = err.message

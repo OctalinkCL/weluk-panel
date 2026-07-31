@@ -6,12 +6,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pencil, Trash2 } from '@lucide/vue'
+import { Monitor, Pencil, Trash2, ImageIcon } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDeleteScreen } from './composables/useDeleteScreen'
 import { useScreenPresence } from './composables/useScreenPresence'
 import PairScreenDialog from './components/PairScreenDialog.vue'
 import EditScreenDialog from './components/EditScreenDialog.vue'
+import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { Screen, ScreenStatus } from '@/types/screen'
 
 const route = useRoute()
@@ -39,6 +40,12 @@ const selectedScreen = ref<Screen | null>(null)
 function openEdit(screen: Screen) {
   selectedScreen.value = screen
   editOpen.value = true
+}
+
+// No importa qué ítem de la playlist se muestre — solo sirve de vistazo.
+// Playlists viejas sin thumbnail generado caen al ícono, no al original.
+function screenThumbnailPath(screen: Screen) {
+  return screen.playlist?.playlist_items.find((item) => item.media?.thumbnail_path)?.media?.thumbnail_path ?? null
 }
 
 async function onDelete(screen: Screen) {
@@ -110,8 +117,18 @@ async function onDelete(screen: Screen) {
               </span>
             </TableCell>
             <TableCell>
-              <span v-if="screen.playlist" class="text-sm">{{ screen.playlist.name }}</span>
-              <span v-else class="text-sm text-muted-foreground">Sin playlist</span>
+              <span v-if="!screen.playlist" class="text-sm text-muted-foreground">Sin playlist</span>
+              <div v-else class="flex items-center gap-2">
+                <div class="size-8 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                  <img
+                    v-if="screenThumbnailPath(screen)"
+                    :src="getMediaPublicUrl(screenThumbnailPath(screen)!)"
+                    class="size-full object-cover"
+                  />
+                  <ImageIcon v-else class="size-4 text-muted-foreground" />
+                </div>
+                <span class="text-sm">{{ screen.playlist.name }}</span>
+              </div>
             </TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end gap-1">
