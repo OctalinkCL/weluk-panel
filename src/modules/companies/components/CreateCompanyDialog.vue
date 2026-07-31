@@ -32,7 +32,7 @@ async function onSubmit() {
 <template>
   <Dialog v-model:open="open">
     <DialogTrigger as-child>
-      <Button size="sm">Nueva company</Button>
+      <Button>Default</Button>
     </DialogTrigger>
     <DialogContent>
       <DialogHeader>

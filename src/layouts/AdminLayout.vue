@@ -8,8 +8,6 @@ import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
 const router = useRouter()
 const authStore = useAuthStore()
-// guards.ts ya resolvió la company de la URL antes de entrar acá — sin fetch
-// propio, sin estado de "checked" (antes useCompanyStatus lo pedía aparte).
 const companyStore = useCurrentCompanyStore()
 
 async function onLogout() {
@@ -37,10 +35,8 @@ async function onLogout() {
     resto de la app sigue vacía igual — las policies de RLS (auth_active_company_id())
     devuelven cero filas para una company deshabilitada, con o sin este overlay.
   -->
-  <div
-    v-if="authStore.role === 'company_admin' && companyStore.company && !companyStore.company.is_active"
-    class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6"
-  >
+  <div v-if="authStore.role === 'company_admin' && companyStore.company && !companyStore.company.is_active"
+    class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6">
     <div class="max-w-sm text-center grid gap-3">
       <h2 class="text-lg font-medium">Cuenta deshabilitada</h2>
       <p class="text-sm text-muted-foreground">
