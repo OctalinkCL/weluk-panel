@@ -851,6 +851,31 @@ Reglas acordadas, **no romper sin preguntar**:
   ambas superficies tienen **las mismas capacidades** (subir y borrar disponibles en las
   dos); el modo picker solo *suma* la acción de agregar — mismo criterio que la Media
   Library de WordPress.
+- **Thumbnail de video + límite de subida bajado a 15 MB (31 julio 2026):** al subir un
+  `.mp4`, `useUploadMedia.ts` genera un frame (`videoThumbnail.ts` — `<video>` en memoria,
+  seek a 0.5s, `canvas.drawImage` → WebP, mismo patrón client-side que ya usaban
+  `imageOptimize.ts`/`videoMetadata.ts`, sin librerías nuevas) y lo sube al bucket como un
+  archivo aparte, guardando la ruta en `media.thumbnail_path` (columna nueva, nullable).
+  Es best-effort: si falla la captura o la subida del thumbnail, el video igual se
+  registra con `thumbnail_path = null` — nunca bloquea la subida real. `MediaGrid.vue` y
+  `PlaylistDetailView.vue` muestran ese frame en vez del ícono genérico de video cuando
+  existe; los videos subidos antes de este cambio se quedan con el ícono genérico
+  (no hay backfill retroactivo, mismo criterio incremental del resto del proyecto).
+  `useDeleteMedia.ts` borra `thumbnail_path` junto con `storage_path` al eliminar (si no,
+  queda huérfano en Storage — mismo tipo de fuga que documenta la sección 7 para el
+  visor) y el chequeo de éxito del borrado pasó de `length === 0` a `length <
+  pathsToRemove.length`, para no dejar pasar en silencio un borrado parcial (borra el
+  video pero falla el thumbnail) — mismo patrón de "RLS/Storage silenciosa" de la
+  sección 4. De paso, el cap de subida bajó de 50 MB a 15 MB (`MAX_SIZE_BYTES` en
+  `useUploadMedia.ts`, más el `file_size_limit` propio del bucket `media` en Supabase —
+  **no** el "Global file size limit" del proyecto, que en el plan free queda fijo en
+  50 MB y pide plan Pro para subirlo; el límite *por bucket* sí se puede bajar por debajo
+  del global sin Pro, vía "Edit bucket" → "Restrict file size"). Motivo: el contenido real
+  esperado son imágenes WebP livianas y videos de 5-7 MB (sección 7) — 15 MB deja ~3x de
+  margen y protege mejor la cuota de 1 GB del plan free que el default de 50 MB.
+  Requiere `alter table media add column thumbnail_path text;` corrido a mano en el
+  proyecto real antes de que esto funcione (ver recordatorio de `.sql` al final de esta
+  sección).
 - **Panel de `company_admin` (real, ya no placeholder)** — rutas propias en
   `router/company-admin.routes.ts`, montadas bajo `/company/*` con el mismo
   `AdminLayout` que `superadmin`: `company-screens` (home), `company-playlists`,
@@ -1128,7 +1153,20 @@ sin conexiones ni costo nuevo (verificado contra el dashboard real: 119/2M mensa
 borrado de a uno a multi-select con cola y confirm agregado (no por-archivo) — ver
 sección 14. De paso, fix de un bug de UX real: reordenar ítems o editar su duración no
 marcaba "Cambios sin publicar" en el badge (el dato en la base siempre estuvo bien, el
-front no refrescaba `playlist.updated_at` después de esas dos acciones)._
+front no refrescaba `playlist.updated_at` después de esas dos acciones).
+
+**Actualización 31 julio 2026:** thumbnail de video + cap de subida bajado de 50 MB a
+15 MB (sección 14). El thumbnail se captura 100% client-side (`<video>` + `canvas` →
+WebP, sin librerías nuevas, mismo patrón que `imageOptimize.ts`/`videoMetadata.ts`) y se
+guarda en `media.thumbnail_path` (columna nueva); es best-effort, nunca bloquea la
+subida del video si falla. `MediaGrid.vue` y `PlaylistDetailView.vue` ya lo muestran en
+vez del ícono genérico. El cap de 15 MB se aplicó en dos capas: `MAX_SIZE_BYTES` del
+cliente y el `file_size_limit` propio del bucket `media` — importante no confundirlo con
+el "Global file size limit" del proyecto (ese sí queda fijo en 50 MB en el plan free,
+pide Pro para subirlo; bajar el límite de un bucket puntual por debajo del global no
+requiere Pro). Evaluado también comprimir video del lado del cliente (`ffmpeg.wasm`) o
+server-side — descartado por ahora: el contenido real esperado (sección 7) son videos de
+5-7 MB, muy por debajo del cap, así que no hay problema real que resolver todavía._
 
 ```
 
