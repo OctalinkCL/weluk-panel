@@ -1032,6 +1032,32 @@ general toda la noche. Además no podría precachear con antelación (recién a 
 cambio sabría qué bajar → pantalla negra mientras descarga), y sería un punto único de
 falla silencioso para **todas** las pantallas a la vez.
 
+#### ⚠️ Interacción con el caché: `evictStaleDisk()` hay que ajustarlo sí o sí
+
+La regla de oro de la sección 7 (nunca descargar en loop) **no se toca**: el player sigue
+reproduciendo siempre desde el blob local, y cambiar de Desayuno a General a las 10:00 es
+cambiar de un blob cacheado a otro, sin red de por medio.
+
+Lo que **sí** cambia es la definición de *qué debería estar cacheado*: hoy es "la playlist
+vigente" (singular), con schedule pasa a ser "la playlist por defecto **más** todas las
+playlists alcanzables por alguna regla". Si `evictStaleDisk()` (en `mediaCache.js` de
+`weluk-browser`) queda como está, cada cambio de turno borra del disco la playlist que
+acaba de salir, y al día siguiente se vuelve a descargar entera:
+
+- 08:00 entra Desayuno → se descarga → 10:00 entra General → `evictStaleDisk()` borra
+  Desayuno → 08:00 del día siguiente Desayuno se descarga de nuevo. Todos los días.
+
+No es el desastre por-loop del incidente de egress (son ~3 descargas diarias por pantalla,
+no miles), pero es una fuga permanente de contenido ya bajado y **el código seguiría
+"funcionando" perfecto** — solo gastando. `evictStaleDisk()` tiene que recibir el
+**conjunto** de archivos alcanzables, no los de una sola playlist.
+
+Efectos secundarios menores del mismo cambio: (a) el working set en disco pasa de una
+playlist a N — con los tamaños del piloto son ~50-100 MB, que en la TV de 80 MiB de la
+matriz de la sección 3 ya raspa (la decisión de box Android + APK lo neutraliza, pero para
+`visor-web` es un techo real); (b) el precache de una regla tiene que ocurrir **antes** de
+su hora, no al llegar — lógica nueva pero aditiva, no rompe nada existente.
+
 **El riesgo #1 de resolverlo en el cliente es el reloj del dispositivo** — una TV con la
 hora corrida rota el contenido mal y nadie lo nota. Mitigación obligatoria: calcular el
 offset contra la hora del servidor al conectar y usar `Date.now() + offset` en todas las
