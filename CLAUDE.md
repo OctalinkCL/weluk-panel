@@ -604,9 +604,13 @@ acceso y SLA), algo que las herramientas self-serve de terceros no resuelven bie
    listar, eliminar). Ver sección 14.
 4. ✅ CRUD de playlists — implementado en `panel`: crear, agregar/quitar ítems,
    reordenar (drag and drop), editar duración por ítem, publicar. Ver sección 14.
-5. Schedule (asignar playlist a pantalla por rango horario/fecha) — **pendiente,
-   `panel`**. Tampoco existe todavía la asignación simple de una playlist a una
-   pantalla (`screens.current_playlist_id` se sigue seteando a mano por SQL).
+5. Schedule (una playlist en una ventana horaria recurrente por día de semana, encima
+   de una playlist base) — **pendiente de implementar, pero el diseño completo ya está
+   acordado y escrito**: ver "📐 Diseño acordado para Schedule" en la sección 14 antes
+   de retomarlo. Toca `panel` **y** los visores (`weluk-browser` / `apk`), porque el
+   cambio de playlist por hora lo resuelve la pantalla, no el servidor. La asignación
+   simple (sin horario) de una playlist a una pantalla **ya existe** desde el dialog
+   "Asignar pantallas" (sección 14) — ya no hace falta SQL manual para eso.
 6. ✅ Sync al player (Realtime + draft/publish, ver secciones 5 y 6) — implementado y
    validado: cambio de playlist y republicación de contenido, con aislamiento
    confirmado entre pantallas concurrentes
@@ -961,12 +965,120 @@ es explícitamente solo para `company_admin` viendo su propia company.
 
 ### Qué falta (en orden sugerido)
 
-1. Schedule por horario/fecha (punto 5 de la sección 9).
+1. Schedule por horario/fecha (punto 5 de la sección 9) — **diseño ya acordado, ver
+   subsección siguiente**.
 3. "Cancelar cambios" en una playlist — **evaluado y pospuesto a propósito**: hoy es
    imposible, porque `playlist_items` es la única fuente de verdad y no se guarda
    ningún snapshot de lo publicado. La opción barata, si se necesita, es una columna
    `published_snapshot jsonb` en `playlists` que se llena al publicar (una columna, no
    una tabla de versiones — respeta el "sin historial" de la sección 5).
+
+### 📐 Diseño acordado para Schedule (1 agosto 2026) — decidido, NO implementado
+
+> **Nada de esto existe todavía en el código.** Es el resultado de una sesión de análisis
+> completa; queda escrito para no volver a derivarlo desde cero cuando se retome. Sujeto
+> a revisión como todo lo demás, pero es el punto de partida acordado.
+
+**Caso de uso real que hay que resolver** (definido con el equipo, no hipotético): una
+playlist "Desayuno" que corre todos los días de 08:00 a 10:00, y fuera de esa ventana una
+playlist general. Otro ejemplo del mismo tipo: una playlist solo para viernes por la
+noche. Es decir: **una ventana horaria recurrente semanal encima de una playlist base**,
+no un calendario de eventos con fechas.
+
+#### Modelo: base + excepciones (no una entidad "Schedule" reutilizable)
+
+`screens.current_playlist_id` **no cambia de estructura** — cambia de significado: pasa de
+ser "la playlist activa" a ser **"la playlist por defecto"**, el piso que se reproduce
+cuando ninguna regla aplica. El `AssignScreensDialog` que ya existe sigue funcionando sin
+tocarlo. Encima de eso, una tabla nueva de reglas colgada de la pantalla:
+`playlist_id`, `screen_id`, días de la semana (array 0-6), `start_time`, `end_time`.
+Sin fechas, sin recurrencia tipo iCal, sin excepciones por fecha.
+
+**Evaluado y descartado: el modelo de Juuno**, donde `Schedule` es una entidad de primera
+clase al mismo nivel que `Playlist` (se crea, se nombra, y se le asigna a la pantalla en
+el mismo slot donde iría una playlist). Motivo del descarte: en ese modelo **no existe
+"la general"** — si la pantalla apunta a un Schedule, ese Schedule tiene que cubrir las
+168 horas de la semana o quedan huecos. Expresar "Desayuno de 8 a 10, el resto general"
+requeriría ~21 reglas artificiales (3 bloques × 7 días) en vez de **una sola**. El caso de
+uso real pide literalmente base + excepciones; conviene construir eso.
+
+- **Lo que se pierde:** reutilización. Un cliente con 5 pantallas iguales carga la
+  programación 5 veces. Se compensa con un botón "Copiar programación a otras pantallas"
+  que reusa el patrón de checkboxes del `AssignScreensDialog`. A la escala del piloto
+  (1-5 pantallas por cliente) no es un problema real.
+- **No cierra la puerta:** si algún día hace falta reutilizar de verdad, las reglas ya
+  viven en su propia tabla — solo cambia de quién cuelgan (agregar un `schedule_id` que
+  las agrupe). Es aditivo, no un rediseño.
+
+#### Quién ejecuta el cambio: la pantalla, no el servidor
+
+**No hay cron, ni `pg_cron`, ni Edge Function agendada, ni ningún servicio permanente.**
+El visor (`weluk-browser` / `apk`) resuelve localmente:
+
+1. Al arrancar lee la pantalla + su playlist por defecto + sus reglas + las playlists
+   referenciadas por esas reglas.
+2. Precachea el contenido de **todas** ellas por adelantado (aplica igual la cascada de
+   la sección 7 — el contenido del turno siguiente ya está en disco antes de la hora).
+3. Un `setInterval` de ~30 s evalúa qué regla aplica ahora; si cambió respecto a la
+   vuelta anterior, cambia de playlist. Como ya está cacheado, el cambio es instantáneo.
+4. Cuando el admin edita las reglas, el visor se entera por el canal Realtime que ya
+   mantiene abierto (mismo mecanismo que `published_at`) y las recarga.
+
+**Evaluado y descartado: que un cron server-side haga `UPDATE screens SET
+current_playlist_id`.** Era tentador porque no requeriría tocar los dos repos de visor
+(ya reaccionan a ese `UPDATE` por Realtime), pero rompe el principio de la sección 7: una
+TV sin internet un viernes a las 20:00 nunca se enteraría del cambio y se quedaría con la
+general toda la noche. Además no podría precachear con antelación (recién a la hora del
+cambio sabría qué bajar → pantalla negra mientras descarga), y sería un punto único de
+falla silencioso para **todas** las pantallas a la vez.
+
+**El riesgo #1 de resolverlo en el cliente es el reloj del dispositivo** — una TV con la
+hora corrida rota el contenido mal y nadie lo nota. Mitigación obligatoria: calcular el
+offset contra la hora del servidor al conectar y usar `Date.now() + offset` en todas las
+evaluaciones, nunca el reloj crudo. **El overlay del visor debe mostrar ese offset** —
+mismo criterio de visibilidad que se aplicó con el estado del caché (sección 7).
+
+#### UI: vista semanal sin eje de horas
+
+Una sección dentro del **detalle de pantalla** (ver "costo real" abajo). Siete columnas,
+una por día, con chips ordenados por hora y la playlist por defecto abajo de todo en gris
+(comunica que es el piso, no un evento más). Click en un chip lo edita; click en el vacío
+de una columna abre el dialog con ese día ya marcado. **Sin arrastrar, sin eje de horas.**
+
+El eje de horas (08:00, 09:00, 10:00…) de la referencia visual de Juuno es justamente la
+parte cara — obliga a posicionar bloques por píxel, resolver solapamientos visuales y
+manejar drag targets. Chips en columna ordenados por hora dan casi toda la legibilidad
+por una fracción del trabajo.
+
+El dialog de crear/editar regla: select de playlist, tres botones de preset
+(`Todos` / `Lun a Vie` / `Fin de semana`) sobre una fila de 7 checkboxes, y hora
+inicio/fin. Los presets resuelven el 90% de los casos con un click; los checkboxes quedan
+para el caso raro ("solo martes"). No hay que elegir entre select y checkboxes — el
+preset es solo un atajo que marca los checkboxes.
+
+**No hay ítem "Programación" en el sidebar, no se crea ni se nombra ni se asigna.**
+Conceptualmente la programación es *una propiedad de la pantalla*, como su nombre — el
+usuario pasa de pensar "esta pantalla muestra X" a "esta pantalla muestra X, salvo los
+viernes a la noche". No hay un objeto nuevo que aprender.
+
+#### Costo real y decisiones chicas pendientes
+
+**El trabajo grueso no son las reglas, es que no existe un detalle de pantalla.**
+`ScreensView.vue` es una tabla plana con dos dialogs; la ruta
+`/c/:companySlug/screens/:id` hay que crearla y probablemente sea más trabajo que el
+schedule en sí. Alternativa barata para una primera versión: meter la vista semanal en un
+dialog desde la tabla — mitad del trabajo, migrable a página después sin rehacer nada.
+De todos modos esa página es donde naturalmente terminarían el estado de conexión, el
+`device_uuid` y todo lo que hoy no tiene dónde vivir.
+
+Tres decisiones que quedan abiertas para cuando se implemente:
+
+- **Zona horaria:** guardarla en `companies` (o `screens`) y evaluar en esa tz.
+  `America/Santiago` tiene DST — no usar un offset fijo ni la tz del dispositivo.
+- **Horarios que cruzan medianoche** (22:00 → 02:00): si no hace falta, el validador
+  exige `fin > inicio` y es un caso menos.
+- **Solapamiento:** lo más limpio es no permitir guardar dos reglas que se pisen el mismo
+  día en la misma pantalla, y avisarlo al guardar — evita tener que inventar prioridades.
 
 ### 🐛 Gotcha de RLS: asignar una pantalla a una playlist en borrador rompía el visor (30 julio 2026)
 
@@ -1227,6 +1339,23 @@ fila para reasignar playlist directo desde `ScreensView` — hubiera duplicado l
 de auto-publish de `useAssignPlaylistScreens.ts` en un segundo composable sin resolver
 ninguna capacidad nueva (el camino inverso, playlist → pantallas, ya existe), y su
 diseño se reabre de nuevo cuando llegue Schedule (sección 9, punto 5)._
+
+**Actualización 1 agosto 2026 — diseño de Schedule acordado (no implementado):** sesión
+de análisis completa sobre el punto 5 de la sección 9, escrita en la sección 14 ("📐
+Diseño acordado para Schedule"). Nada de esto existe en código todavía. Las tres
+decisiones de fondo: (a) **base + excepciones** — `screens.current_playlist_id` pasa a
+significar "playlist por defecto" y las reglas (playlist + días + hora inicio/fin) se
+cuelgan de la pantalla; se descartó el modelo de Juuno de un `Schedule` reutilizable como
+entidad de primera clase, porque ahí no existe "la general" y expresar el caso real
+("Desayuno de 8 a 10, el resto general") costaría ~21 reglas en vez de una. (b) **el
+cambio de playlist por hora lo ejecuta la pantalla, no el servidor** — timer local de
+~30 s sobre reglas y contenido ya precacheados; se descartó un cron server-side porque
+una TV sin internet nunca se enteraría del cambio y no podría precachear con antelación
+(rompe el principio de la sección 7). Riesgo #1 asociado: el reloj del dispositivo —
+sincronizar offset contra el servidor y mostrarlo en el overlay. (c) **UI de columnas por
+día sin eje de horas**, dentro de un detalle de pantalla que todavía no existe (ese, y no
+las reglas, es el trabajo grueso). Sin ítem "Programación" en el sidebar: la programación
+es una propiedad de la pantalla, no un objeto nuevo._
 
 ```
 
