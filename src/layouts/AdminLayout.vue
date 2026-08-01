@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
+import AppHeader from '@/components/layouts/AppHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
@@ -20,16 +21,12 @@ async function onLogout() {
   <SidebarProvider>
     <AppSidebar />
     <SidebarInset class="bg-taupe-100">
-      <header class="border-b h-12 flex items-center px-4">
-        <SidebarTrigger />
-        <Button variant="ghost" size="sm" class="ml-auto" @click="onLogout">Cerrar sesión</Button>
-      </header>
+      <AppHeader />
       <div class="p-4 lg:p-6">
         <router-view />
       </div>
     </SidebarInset>
   </SidebarProvider>
-
   <!--
     Aviso, no la seguridad real: si esto se saca del DOM con el inspector, el
     resto de la app sigue vacía igual — las policies de RLS (auth_active_company_id())
