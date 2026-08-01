@@ -2,10 +2,9 @@
 import { ref, computed, watch } from 'vue'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pencil, Trash2, ImageIcon } from '@lucide/vue'
+import { Monitor, Pencil, Trash2, ImageIcon, EllipsisVertical } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDeleteScreen } from './composables/useDeleteScreen'
 import { useScreenPresence } from './composables/useScreenPresence'
@@ -14,6 +13,12 @@ import EditScreenDialog from './components/EditScreenDialog.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { Screen, ScreenStatus } from '@/types/screen'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const companyId = useCurrentCompanyId()
 const { screens, loading, error, fetchScreens } = useScreens(companyId)
@@ -87,6 +92,7 @@ async function onConfirmDelete() {
 
 <template>
   <div class="grid gap-4 lg:gap-6">
+    <!-- header -->
     <header class="flex items-start justify-between lg:items-center">
       <div class="leading-tight">
         <h2 class="text-lg font-medium">Screens</h2>
@@ -97,8 +103,8 @@ async function onConfirmDelete() {
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
 
-    <div v-if="loading" class="grid gap-2">
-      <Skeleton class="h-9" v-for="i in 3" :key="i" />
+    <div v-if="loading" class="grid gap-4 lg:grid-cols-5">
+      <Skeleton class="h-55 bg-stone-200" v-for="i in 5" :key="i" />
     </div>
 
     <Empty v-else-if="rows.length === 0">
@@ -111,78 +117,63 @@ async function onConfirmDelete() {
       </EmptyHeader>
     </Empty>
 
-    <div class="border rounded-lg overflow-hidden" v-else>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Conexión</TableHead>
-            <TableHead>Playlist</TableHead>
-            <TableHead class="text-right"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="row in rows" :key="row.screen.id">
-            <TableCell class="font-medium">{{ row.screen.name }}</TableCell>
-            <TableCell>
-              <span class="text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-                {{ row.statusLabel }}
-              </span>
-            </TableCell>
-            <TableCell>
-              <span v-if="row.screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
-              <span v-else class="flex items-center gap-1.5 text-sm">
-                <span
-                  class="size-2 rounded-full"
-                  :class="row.isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                />
-                {{ row.isOnline ? 'En línea' : 'Sin conexión' }}
-              </span>
-            </TableCell>
-            <TableCell>
-              <span v-if="!row.playlistName" class="text-sm text-muted-foreground">Sin playlist</span>
-              <div v-else class="flex items-center gap-2">
-                <div class="size-8 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0">
-                  <img
-                    v-if="row.thumbnailUrl"
-                    :src="row.thumbnailUrl"
-                    alt=""
-                    loading="lazy"
-                    class="size-full object-cover"
-                  />
-                  <ImageIcon v-else class="size-4 text-muted-foreground" />
-                </div>
-                <span class="text-sm">{{ row.playlistName }}</span>
-              </div>
-            </TableCell>
-            <TableCell class="text-right">
-              <div class="flex items-center justify-end gap-1">
-                <Button size="sm" variant="ghost" @click="openEdit(row.screen)">
-                  <Pencil class="size-4" />
-                  Editar
-                </Button>
-                <Button size="sm" variant="ghost" class="text-destructive hover:text-destructive"
-                  :disabled="deleting" @click="openDeleteConfirm(row.screen)">
-                  <Trash2 class="size-4" />
-                  Eliminar
-                </Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <!-- screens -->
+    <div class="grid gap-4 lg:grid-cols-5" v-else>
+      <!-- grid screens -->
+      <div v-for="row in rows" :key="row.screen.id" class="bg-background rounded p-2 flex flex-col gap-2">
+        <!-- name -->
+        <header class="flex items-center gap-2">
+          <div>
+            <span v-if="row.screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
+            <span v-else>
+              <span class="size-3 block rounded-full" :class="row.isOnline ? 'bg-emerald-500' : 'bg-red-400'" />
+            </span>
+          </div>
+          <h6 class="text-base font-semibold">
+            {{ row.screen.name }}
+            <span class="text-xs text-muted-foreground font-normal ml-2">{{ row.statusLabel }}</span>
+          </h6>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" size="sm" class="ml-auto w-7">
+                <EllipsisVertical class="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem @click="openEdit(row.screen)">
+                <Pencil class="size-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="openDeleteConfirm(row.screen)">
+                <Trash2 class="size-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+        <!-- image -->
+        <div class="bg-accent rounded h-33 flex items-center justify-center border overflow-hidden">
+          <span v-if="!row.playlistName" class="text-sm text-muted-foreground font-mono">
+            [Sin playlist]
+          </span>
+          <div v-else>
+            <div>
+              <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" loading="lazy"
+                class="size-full object-cover" />
+              <ImageIcon v-else class="size-12 text-stone-400 stroke-1" />
+            </div>
+
+          </div>
+        </div>
+        <!-- playlist -->
+        <p class="border rounded p-2 text-sm">Playlist: <span class="font-semibold">{{ row.playlistName }}</span></p>
+      </div>
     </div>
   </div>
 
   <EditScreenDialog v-model:open="editOpen" :screen="selectedScreen" @updated="fetchScreens" />
 
-  <ConfirmDialog
-    v-model:open="confirmDeleteOpen"
-    title="Eliminar pantalla"
-    :description="deleteConfirmDescription"
-    :loading="deleting"
-    :error="deleteError"
-    @confirm="onConfirmDelete"
-  />
+  <ConfirmDialog v-model:open="confirmDeleteOpen" title="Eliminar pantalla" :description="deleteConfirmDescription"
+    :loading="deleting" :error="deleteError" @confirm="onConfirmDelete" />
 </template>

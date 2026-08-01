@@ -41,7 +41,7 @@ async function onSubmit() {
 <template>
   <Dialog v-model:open="open">
     <DialogTrigger as-child>
-      <Button size="sm">Vincular pantalla</Button>
+      <Button>Vincular pantalla</Button>
     </DialogTrigger>
     <DialogContent>
       <DialogHeader>
