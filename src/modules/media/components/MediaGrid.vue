@@ -249,6 +249,7 @@ async function onBulkDelete() {
           <img
             v-if="item.thumbnail_path || item.type === 'image'"
             :src="getMediaPublicUrl(item.thumbnail_path ?? item.storage_path)"
+            loading="lazy"
             class="size-full object-cover"
           />
           <Video v-else class="size-6 text-muted-foreground" />

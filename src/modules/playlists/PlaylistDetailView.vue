@@ -162,7 +162,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
 
         <div class="size-16 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
           <img v-if="item.media.thumbnail_path || item.media.type === 'image'"
-            :src="getMediaPublicUrl(item.media.thumbnail_path ?? item.media.storage_path)"
+            :src="getMediaPublicUrl(item.media.thumbnail_path ?? item.media.storage_path)" loading="lazy"
             class="size-full object-cover" />
           <Video v-else class="size-6 text-muted-foreground" />
         </div>
