@@ -32,12 +32,11 @@ const visibleItems = computed(() =>
 <template>
   <SidebarGroup>
     <SidebarGroupContent>
-      <SidebarMenu>
+      <SidebarMenu class="gap-2">
         <SidebarMenuItem v-for="item in visibleItems" :key="item.routeName">
-          <SidebarMenuButton as-child :is-active="route.name === item.routeName">
+          <SidebarMenuButton as-child :is-active="route.name === item.routeName" class="h-9">
             <router-link
-              :to="item.companyScoped ? { name: item.routeName, params: { companySlug } } : { name: item.routeName }"
-            >
+              :to="item.companyScoped ? { name: item.routeName, params: { companySlug } } : { name: item.routeName }">
               <component :is="item.icon" />
               <span>{{ item.label }}</span>
             </router-link>

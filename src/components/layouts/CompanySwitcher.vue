@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar'
-import { Building2, ChevronsUpDown, Check, Settings } from '@lucide/vue'
+import { ChevronsUpDown, Check, Settings } from '@lucide/vue'
 import { useCompanies } from '@/modules/companies/composables/useCompanies'
 import { useCurrentCompanyStore } from '@/stores/currentCompany'
 
@@ -35,28 +35,23 @@ function selectCompany(slug: string) {
 <template>
   <SidebarMenu>
     <SidebarMenuItem>
+      <!-- dropdown -->
       <DropdownMenu>
+        <!-- trigger -->
         <DropdownMenuTrigger as-child>
-          <SidebarMenuButton size="lg">
-            <Building2 class="size-4 shrink-0" />
+          <SidebarMenuButton class="border h-9">
             <span class="truncate">{{ companyStore.company?.name ?? 'Elegir company' }}</span>
             <ChevronsUpDown class="ml-auto size-4 shrink-0 text-muted-foreground" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
+        <!-- content -->
         <DropdownMenuContent align="start">
           <DropdownMenuItem v-if="loading" disabled>Cargando...</DropdownMenuItem>
-          <DropdownMenuItem
-            v-for="company in companies"
-            :key="company.id"
-            @select="selectCompany(company.slug)"
-          >
+          <DropdownMenuItem v-for="company in companies" :key="company.id" @select="selectCompany(company.slug)">
             <Check v-if="company.id === companyStore.company?.id" class="size-4" />
             <span v-else class="size-4" />
             <span class="truncate">{{ company.name }}</span>
-            <span
-              v-if="!company.is_active"
-              class="ml-auto text-xs text-muted-foreground"
-            >
+            <span v-if="!company.is_active" class="ml-auto text-xs text-muted-foreground">
               Deshabilitada
             </span>
           </DropdownMenuItem>

@@ -10,7 +10,7 @@ const authStore = useAuthStore()
 <template>
   <SidebarMenu>
     <!-- logo -->
-    <SidebarMenuItem class="py-3">
+    <SidebarMenuItem class="pt-3 pb-5">
       <AppLogo class="w-27 fill-primary" />
     </SidebarMenuItem>
     <!-- company switcher -->
