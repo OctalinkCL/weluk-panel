@@ -64,8 +64,8 @@ async function onDelete(playlist: Playlist) {
       </EmptyHeader>
     </Empty>
 
-    <div class="border rounded-lg overflow-hidden" v-else>
-      <Table>
+    <div v-else>
+      <Table class="bg-background rounded">
         <TableHeader>
           <TableRow>
             <TableHead>Nombre</TableHead>
@@ -75,12 +75,8 @@ async function onDelete(playlist: Playlist) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow
-            v-for="playlist in playlists"
-            :key="playlist.id"
-            class="cursor-pointer"
-            @click="goToDetail(playlist.id)"
-          >
+          <TableRow v-for="playlist in playlists" :key="playlist.id" class="cursor-pointer "
+            @click="goToDetail(playlist.id)">
             <TableCell class="font-medium">{{ playlist.name }}</TableCell>
             <TableCell>
               <span class="text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
@@ -90,13 +86,8 @@ async function onDelete(playlist: Playlist) {
             <TableCell>{{ formatDate(playlist.created_at) }}</TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end" @click.stop>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  class="text-destructive hover:text-destructive"
-                  :disabled="deleting"
-                  @click="onDelete(playlist)"
-                >
+                <Button size="sm" variant="ghost" class="text-destructive hover:text-destructive" :disabled="deleting"
+                  @click="onDelete(playlist)">
                   <Trash2 class="size-4" />
                   Eliminar
                 </Button>

@@ -36,7 +36,7 @@ async function onSubmit() {
 <template>
   <Dialog v-model:open="open">
     <DialogTrigger as-child>
-      <Button size="sm">Nueva playlist</Button>
+      <Button>Nueva playlist</Button>
     </DialogTrigger>
     <DialogContent>
       <DialogHeader>

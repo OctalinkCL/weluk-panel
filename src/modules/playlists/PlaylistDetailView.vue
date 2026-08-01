@@ -104,18 +104,14 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
   <div class="grid gap-4 lg:gap-6">
     <header class="flex items-start justify-between lg:items-center">
       <div class="leading-tight">
-        <Skeleton v-if="loadingPlaylist" class="h-6 w-48" />
-        <div v-else class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <h2 class="text-lg font-medium">{{ playlist?.name }}</h2>
-          <span
-            v-if="status"
-            class="text-xs px-2 py-0.5 rounded-full border"
-            :class="status === 'pending'
-              ? 'bg-foreground text-background border-foreground'
-              : 'bg-muted text-muted-foreground border-border'"
-          >
+          <p v-if="status" class="text-xs px-2 py-0.5 rounded-full border" :class="status === 'pending'
+            ? 'bg-foreground text-background border-foreground'
+            : 'bg-muted text-muted-foreground border-border'">
             {{ STATUS_LABEL[status] }}
-          </span>
+            <span v-if="loadingPlaylist">...</span>
+          </p>
         </div>
         <p class="text-sm text-muted-foreground">
           <template v-if="assignedScreens.length > 0">Pantallas: {{ assignedScreens.join(', ') }}</template>
@@ -123,12 +119,12 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <Button size="sm" variant="outline" @click="mediaOpen = true">Agregar contenido</Button>
-        <Button size="sm" variant="outline" @click="assignOpen = true">
+        <Button variant="outline" @click="mediaOpen = true">Agregar contenido</Button>
+        <Button variant="outline" @click="assignOpen = true">
           <Monitor class="size-4" />
           Asignar pantallas
         </Button>
-        <Button size="sm" :disabled="publishing || !canPublish" @click="onPublish">
+        <Button :disabled="publishing || !canPublish" @click="onPublish">
           {{ publishing ? 'Publicando...' : status === 'draft' ? 'Publicar' : 'Publicar cambios' }}
         </Button>
       </div>
@@ -158,21 +154,16 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
     </Empty>
 
     <VueDraggable v-else v-model="items" handle=".drag-handle" :animation="150" class="grid gap-2" @end="onReorder">
-      <div
-        v-for="(item, index) in items"
-        :key="item.id"
-        class="flex items-center gap-4 border rounded-lg p-3"
-      >
+      <div v-for="(item, index) in items" :key="item.id"
+        class="flex items-center gap-4 border rounded-lg p-3 bg-background">
         <GripVertical class="drag-handle size-4 text-muted-foreground cursor-grab shrink-0" />
 
         <span class="text-sm text-muted-foreground w-5 text-center shrink-0">{{ index + 1 }}</span>
 
         <div class="size-16 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
-          <img
-            v-if="item.media.thumbnail_path || item.media.type === 'image'"
+          <img v-if="item.media.thumbnail_path || item.media.type === 'image'"
             :src="getMediaPublicUrl(item.media.thumbnail_path ?? item.media.storage_path)"
-            class="size-full object-cover"
-          />
+            class="size-full object-cover" />
           <Video v-else class="size-6 text-muted-foreground" />
         </div>
 
@@ -185,41 +176,22 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
         </div>
 
         <div class="flex items-center gap-1 shrink-0">
-          <Input
-            type="number"
-            min="1"
-            class="w-16 h-8 text-sm text-center"
+          <Input type="number" min="1" class="w-16 h-8 text-sm text-center"
             :model-value="item.duration_seconds ?? item.media.duration_seconds"
-            @change="onDurationChange(item, $event)"
-          />
+            @change="onDurationChange(item, $event)" />
           <span class="text-sm text-muted-foreground">s</span>
         </div>
 
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          class="text-destructive hover:text-destructive shrink-0"
-          :disabled="removing"
-          @click="onRemoveItem(item)"
-        >
+        <Button size="icon-sm" variant="ghost" class="text-destructive hover:text-destructive shrink-0"
+          :disabled="removing" @click="onRemoveItem(item)">
           <Trash2 class="size-4" />
         </Button>
       </div>
     </VueDraggable>
   </div>
 
-  <MediaPickerDialog
-    v-model:open="mediaOpen"
-    :company-id="companyId"
-    :playlist-id="playlistId"
-    @added="onAdded"
-  />
+  <MediaPickerDialog v-model:open="mediaOpen" :company-id="companyId" :playlist-id="playlistId" @added="onAdded" />
 
-  <AssignScreensDialog
-    v-model:open="assignOpen"
-    :company-id="companyId"
-    :playlist-id="playlistId"
-    :published-at="playlist?.published_at ?? null"
-    @assigned="onScreensAssigned"
-  />
+  <AssignScreensDialog v-model:open="assignOpen" :company-id="companyId" :playlist-id="playlistId"
+    :published-at="playlist?.published_at ?? null" @assigned="onScreensAssigned" />
 </template>
