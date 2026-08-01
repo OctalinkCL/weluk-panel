@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
-import MediaGrid from './components/MediaGrid.vue'
+import MediaLibrary from './components/MediaLibrary.vue'
 
 const companyId = useCurrentCompanyId()
 </script>
@@ -12,6 +12,6 @@ const companyId = useCurrentCompanyId()
       <p class="text-sm text-muted-foreground">Biblioteca de contenido de esta company.</p>
     </header>
 
-    <MediaGrid v-if="companyId" :company-id="companyId" />
+    <MediaLibrary v-if="companyId" :company-id="companyId" />
   </div>
 </template>
