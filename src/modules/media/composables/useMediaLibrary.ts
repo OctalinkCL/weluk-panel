@@ -109,7 +109,6 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
         const added = await addPlaylistItem(id, mediaId, order)
         if (added) order++
       }
-      clearSelection()
       await fetchExistingItems()
     } finally {
       bulkAdding.value = false

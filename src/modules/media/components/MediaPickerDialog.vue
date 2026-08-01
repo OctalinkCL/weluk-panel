@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toRef } from 'vue'
+import { toRef, watch } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { XIcon } from '@lucide/vue'
@@ -37,8 +37,18 @@ const {
   deleteSelected,
 } = useMediaLibrary(props.companyId, toRef(props, 'playlistId'))
 
+// Reset al reabrir, no al agregar — así la selección no desaparece de
+// golpe mientras el modal sigue visible cerrándose.
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) clearSelection()
+  },
+)
+
 async function onAdd() {
   await addSelected()
+  emit('update:open', false)
   emit('added')
 }
 </script>

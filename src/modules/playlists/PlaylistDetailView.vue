@@ -62,9 +62,7 @@ function fileName(storagePath: string) {
 }
 
 async function onAdded() {
-  await fetchItems()
-  await fetchPlaylist()
-  mediaOpen.value = false
+  await Promise.all([fetchItems(), fetchPlaylist()])
 }
 
 async function onPublish() {
