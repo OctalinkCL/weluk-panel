@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import AppLogo from '@/components/shared/AppLogo.vue'
 import CompanySwitcher from './CompanySwitcher.vue'
 
 const authStore = useAuthStore()
 </script>
 
 <template>
-  <CompanySwitcher v-if="authStore.role === 'superadmin'" />
-  <SidebarMenu v-else>
-    <SidebarMenuItem>
-      <div class="px-2 py-2 text-sm font-medium">Weluk</div>
+  <SidebarMenu>
+    <!-- logo -->
+    <SidebarMenuItem class="py-3">
+      <AppLogo class="w-27 fill-primary" />
+    </SidebarMenuItem>
+    <!-- company switcher -->
+    <SidebarMenuItem v-if="authStore.role === 'superadmin'">
+      <CompanySwitcher />
     </SidebarMenuItem>
   </SidebarMenu>
 </template>

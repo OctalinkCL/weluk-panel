@@ -19,7 +19,7 @@ async function onLogout() {
 <template>
   <SidebarProvider>
     <AppSidebar />
-    <SidebarInset>
+    <SidebarInset class="bg-taupe-100">
       <header class="border-b h-12 flex items-center px-4">
         <SidebarTrigger />
         <Button variant="ghost" size="sm" class="ml-auto" @click="onLogout">Cerrar sesión</Button>
