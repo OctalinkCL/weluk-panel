@@ -5,7 +5,9 @@
 > `docs/03-contratos.md` antes de tocar pairing, caché, Realtime, Schedule o el modelo de
 > datos:** son reglas que ya se pagaron en sangre en otros repos del mismo producto.
 
-Última lectura de `docs/DECISIONES.md`: 2026-08-02
+Última lectura de `docs/DECISIONES.md`: 2026-08-02 (incluye las dos entradas de seguridad de
+esa fecha — el `revoke` de `disconnect_own_screen` y los dos hardenings de RLS, ambos
+acordados y **no** aplicados todavía)
 
 ## Setup del symlink (una vez por máquina)
 
