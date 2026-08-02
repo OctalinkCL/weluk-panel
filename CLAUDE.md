@@ -173,6 +173,26 @@ Reglas acordadas, **no romper sin preguntar**:
   > **Evaluado y descartado (mismo día):** `Select` inline en esta fila para reasignar
   > playlist directo desde acá. Motivo: la capacidad ya existe del lado inverso
   > (`AssignScreensDialog`), y su diseño se reabre de nuevo cuando llegue Schedule.
+- **`PlaylistsView.vue` muestra thumbnail de 32px** junto al nombre — mismo patrón que
+  `ScreensView`, pero con una diferencia deliberada en la query: en vez de traer todos los
+  `playlist_items` y elegir uno client-side, `usePlaylists.ts` limita el embed a **1 fila por
+  playlist** server-side con
+  `.order('order_index', { referencedTable: 'playlist_items' }).limit(1, { referencedTable: 'playlist_items' })`.
+  El `.limit()` con `referencedTable` aplica por cada playlist (fila padre), no global sobre el
+  resultado — cada playlist trae su propio ítem de menor `order_index`, no una sola miniatura
+  para toda la tabla. Tipo nuevo `PlaylistWithThumbnail` en `types/playlist.ts` (no se tocó el
+  `Playlist` base porque otros composables lo usan con `select('*')` plano). Mismo caveat que
+  `ScreensView`: vistazo aproximado, no preview fiel de lo publicado.
+  > **Costo evaluado a propósito (no implementado, solo analizado):** con 100 playlists el
+  > dataset de thumbnails ronda ~3.5 MB totales (WebP 480px, ~35 KB c/u — cifra de
+  > `docs/02-datos.md § Thumbnails`), y `loading="lazy"` en el `<img>` hace que una carga típica
+  > de tabla (~15-20 filas visibles) pida ~500-700 KB, no el total. El Storage CDN de Supabase
+  > cachea por URL de objeto compartido entre usuarios (`cacheControl` de 1 año), así que el
+  > "cache miss" caro ocurre una sola vez por archivo en la vida del proyecto — el resto son
+  > Cached Egress (tarifa reducida) o cache local del browser (0 bytes). Se consideró separar
+  > listado en activas/inactivas con paginación para escalar más allá de esto, pero se descartó
+  > por ahora: el volumen actual no lo justifica y `published_at` (ya existente, sin schema
+  > nuevo) alcanza como filtro barato el día que haga falta.
 - **Panel de `company_admin` (real, ya no placeholder)** — rutas propias en
   `router/company-admin.routes.ts`, montadas bajo `/company/*` con el mismo
   `AdminLayout` que `superadmin`: `company-screens` (home), `company-playlists`,
