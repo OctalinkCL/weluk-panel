@@ -5,9 +5,10 @@
 > `docs/03-contratos.md` antes de tocar pairing, caché, Realtime, Schedule o el modelo de
 > datos:** son reglas que ya se pagaron en sangre en otros repos del mismo producto.
 
-Última lectura de `docs/DECISIONES.md`: 2026-08-02 (incluye las dos entradas de seguridad de
-esa fecha — el `revoke` de `disconnect_own_screen` y los dos hardenings de RLS, ambos
-acordados y **no** aplicados todavía)
+Última lectura de `docs/DECISIONES.md`: 2026-08-02 (incluye dos hardenings de RLS que ya
+están ✅ implementados: `set search_path` en 4 funciones + validación de `current_playlist_id`,
+ambos aplicados en Supabase el 2 agosto. El `revoke` de `disconnect_own_screen` queda para
+v1.1, no es bloqueante para producción B2B)
 
 ## Setup del symlink (una vez por máquina)
 
