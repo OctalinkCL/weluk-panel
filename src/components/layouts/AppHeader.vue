@@ -25,7 +25,9 @@ console.debug('authStore', authStore.profile)
 </script>
 
 <template>
-  <header class="bg-background border-b h-15 flex items-center justify-between px-4 sticky top-0">
+  <header
+    class="bg-background border-b border-black/6 h-15 flex items-center justify-between px-4 sticky top-0"
+  >
     <SidebarTrigger />
 
     <DropdownMenu>
@@ -40,7 +42,9 @@ console.debug('authStore', authStore.profile)
         <DropdownMenuSeparator />
         <DropdownMenuItem class="h-8 px-3 cursor-pointer">Perfil</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer">Cerrar sesión</DropdownMenuItem>
+        <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer"
+          >Cerrar sesión</DropdownMenuItem
+        >
       </DropdownMenuContent>
     </DropdownMenu>
   </header>
