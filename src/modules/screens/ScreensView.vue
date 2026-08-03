@@ -99,9 +99,9 @@ async function onConfirmDelete() {
 </script>
 
 <template>
-  <div class="grid gap-4 lg:gap-6">
+  <div class="grid gap-6">
     <!-- header -->
-    <header class="flex items-start justify-between lg:items-center">
+    <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div class="leading-tight">
         <h2 class="text-lg font-medium">Pantallas</h2>
         <p class="text-sm text-muted-foreground">Administra las pantallas de tu empresa.</p>
@@ -177,7 +177,7 @@ async function onConfirmDelete() {
               <MonitorPlay v-else class="size-12 stroke-1" />
             </div>
           </div>
-          <ItemDescription class="flex items-center gap-1.5   mt-1">
+          <ItemDescription class="flex items-center gap-1.5 text-xs  mt-1">
             <Film :size="15" class="text-amber-500" /> Playlist: <span class="text-primary font-medium">
               {{ row.playlistName ?? 'Sin playlist' }}</span>
           </ItemDescription>

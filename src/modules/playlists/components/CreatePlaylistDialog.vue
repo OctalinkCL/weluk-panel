@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog'
 import { useCreatePlaylist } from '../composables/useCreatePlaylist'
 
+import { Plus } from '@lucide/vue'
+
 const props = defineProps<{ companyId: string }>()
 
 const router = useRouter()
@@ -36,7 +38,9 @@ async function onSubmit() {
 <template>
   <Dialog v-model:open="open">
     <DialogTrigger as-child>
-      <Button>Nueva playlist</Button>
+      <Button class="cursor-pointer">
+        <Plus />Nueva Playlist
+      </Button>
     </DialogTrigger>
     <DialogContent>
       <DialogHeader>
