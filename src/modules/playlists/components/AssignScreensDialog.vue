@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -41,7 +40,9 @@ watch(
   },
 )
 
-const allSelected = computed(() => screens.value.length > 0 && selected.value.size === screens.value.length)
+const allSelected = computed(
+  () => screens.value.length > 0 && selected.value.size === screens.value.length,
+)
 
 function toggleAll(checked: boolean) {
   selected.value = checked ? new Set(screens.value.map((s) => s.id)) : new Set()
@@ -68,10 +69,9 @@ async function onSave() {
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>Asignar pantallas</DialogTitle>
-        <DialogDescription>Elegí qué pantallas van a reproducir esta playlist.</DialogDescription>
       </DialogHeader>
 
-      <Skeleton v-if="loading" class="h-40" />
+      <Skeleton v-if="loading" class="h-61.75 rounded" />
 
       <Empty v-else-if="screens.length === 0">
         <EmptyHeader>
@@ -79,31 +79,32 @@ async function onSave() {
             <Monitor />
           </EmptyMedia>
           <EmptyTitle>Sin pantallas</EmptyTitle>
-          <EmptyDescription>Esta company todavía no tiene pantallas vinculadas.</EmptyDescription>
+          <EmptyDescription>Aun no tiene pantallas vinculadas.</EmptyDescription>
         </EmptyHeader>
       </Empty>
 
-      <div v-else class="grid gap-1 max-h-80 overflow-y-auto">
-        <label class="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-muted cursor-pointer font-medium text-sm">
-          <Checkbox
-            :model-value="allSelected"
-            @update:model-value="(v) => toggleAll(!!v)"
-          />
+      <div v-else class="grid gap-1 max-h-80 overflow-y-auto border rounded">
+        <label
+          class="flex items-center gap-3 px-2 py-2 rounded-md cursor-pointer font-medium text-sm"
+        >
+          <Checkbox :model-value="allSelected" @update:model-value="(v) => toggleAll(!!v)" />
           Seleccionar todas
         </label>
         <Separator />
-        <label
-          v-for="screen in screens"
-          :key="screen.id"
-          class="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-muted cursor-pointer text-sm"
-        >
-          <Checkbox
-            :model-value="selected.has(screen.id)"
-            @update:model-value="(v) => toggle(screen.id, !!v)"
-          />
-          <Monitor class="size-4 text-muted-foreground shrink-0" />
-          <span class="truncate">{{ screen.name }}</span>
-        </label>
+        <div class="h-50 overflow-y-auto px-1">
+          <label
+            v-for="screen in screens"
+            :key="screen.id"
+            class="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-muted cursor-pointer text-sm"
+          >
+            <Checkbox
+              :model-value="selected.has(screen.id)"
+              @update:model-value="(v) => toggle(screen.id, !!v)"
+            />
+            <Monitor class="size-4 text-muted-foreground shrink-0" />
+            <span class="truncate">{{ screen.name }}</span>
+          </label>
+        </div>
       </div>
 
       <p v-if="!publishedAt && screens.length > 0" class="text-sm text-muted-foreground">
