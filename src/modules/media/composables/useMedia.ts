@@ -8,7 +8,11 @@ export function useMedia(companyId: string) {
   const error = ref<string | null>(null)
 
   async function fetchMedia() {
-    loading.value = true
+    // Solo mostrar el skeleton en la carga inicial real — en un refetch con la
+    // lista ya poblada (agregar/quitar/subir), actualizar en el lugar sin
+    // tapar los items existentes con placeholders. Mismo patrón que
+    // usePlaylistItems.fetchItems().
+    if (media.value.length === 0) loading.value = true
     error.value = null
     const { data, error: err } = await supabase
       .from('media')
