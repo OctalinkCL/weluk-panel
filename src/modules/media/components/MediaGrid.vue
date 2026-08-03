@@ -44,17 +44,26 @@ function fileName(storagePath: string) {
       </EmptyHeader>
     </Empty>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+      <!-- items en cola -->
       <div v-for="item in queue" :key="item.id" class="relative border rounded-lg overflow-hidden">
         <div class="aspect-video bg-muted flex items-center justify-center relative">
           <Skeleton class="absolute inset-0" />
-          <Loader2 v-if="item.status === 'uploading'" class="relative size-6 animate-spin text-muted-foreground" />
-          <TriangleAlert v-else-if="item.status === 'error'" class="relative size-6 text-destructive" />
+          <Loader2
+            v-if="item.status === 'uploading'"
+            class="relative size-6 animate-spin text-muted-foreground"
+          />
+          <TriangleAlert
+            v-else-if="item.status === 'error'"
+            class="relative size-6 text-destructive"
+          />
         </div>
         <div class="p-2 flex items-center justify-between gap-1">
           <div class="min-w-0">
             <p class="text-xs font-medium truncate">{{ item.file.name }}</p>
-            <p v-if="item.status === 'error'" class="text-xs truncate text-destructive">{{ item.error }}</p>
+            <p v-if="item.status === 'error'" class="text-xs truncate text-destructive">
+              {{ item.error }}
+            </p>
           </div>
           <Button
             v-if="item.status === 'error'"
@@ -68,12 +77,13 @@ function fileName(storagePath: string) {
         </div>
       </div>
 
+      <!-- items -->
       <div
         v-for="item in media"
         :key="item.id"
-        class="group relative border rounded-lg overflow-hidden cursor-pointer hover:border-foreground"
+        class="group relative border rounded-lg overflow-hidden cursor-pointer hover:border-foreground transition"
         :class="[
-          selectedIds.has(item.id) ? 'ring-2 ring-primary' : '',
+          selectedIds.has(item.id) ? 'ring-3 ring-blue-600' : '',
           mediaIdsInPlaylist.has(item.id) ? 'opacity-60' : '',
         ]"
         @click="emit('toggle', item.id)"
@@ -89,6 +99,9 @@ function fileName(storagePath: string) {
         </div>
         <div class="p-2">
           <p class="text-xs font-medium truncate">{{ fileName(item.storage_path) }}</p>
+          <p class="text-xs text-muted-foreground">
+            {{ item.type === 'image' ? 'Imagen' : 'Video' }}
+          </p>
         </div>
 
         <div

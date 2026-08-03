@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from '@lucide/vue'
+import { Loader2, Trash2, Plus } from '@lucide/vue'
 
 defineProps<{
   selectedCount: number
@@ -41,35 +41,26 @@ function onFileSelected(event: Event) {
     <div class="flex items-center gap-2">
       <label v-if="hasMedia" class="flex items-center gap-2 text-sm cursor-pointer">
         <Checkbox :model-value="allSelected" @update:model-value="(v) => emit('select-all', !!v)" />
-        Seleccionar todo
+        Seleccionar Todo
       </label>
-      <template v-if="selectedCount > 0">
-        <span class="text-sm text-muted-foreground">{{ selectedCount }} seleccionado{{ selectedCount > 1 ? 's' : '' }}</span>
-        <Button size="sm" variant="ghost" :disabled="bulkAdding || bulkDeleting" @click="emit('clear')">Cancelar</Button>
-      </template>
     </div>
 
     <div class="flex items-center gap-2">
-      <Button
-        v-if="selectedCount > 0"
-        size="sm"
-        variant="destructive"
-        :disabled="bulkAdding || bulkDeleting"
-        @click="emit('delete')"
+      <Button variant="outline" :disabled="bulkAdding || bulkDeleting" @click="emit('clear')"
+        >Cancelar</Button
       >
-        <Loader2 v-if="bulkDeleting" class="size-3.5 animate-spin" />
-        {{ bulkDeleting ? 'Eliminando...' : `Eliminar ${selectedCount}` }}
-      </Button>
+      <!-- add -->
       <Button
         v-if="canAdd && selectedCount > 0"
-        size="sm"
         :disabled="bulkAdding || bulkDeleting"
         @click="emit('add')"
       >
-        <Loader2 v-if="bulkAdding" class="size-3.5 animate-spin" />
-        {{ bulkAdding ? 'Agregando...' : `Agregar ${selectedCount} a la lista` }}
+        <Loader2 v-if="bulkAdding" class="animate-spin" />
+        <Plus v-else />
+        {{ bulkAdding ? 'Agregando...' : `Agregar ${selectedCount}` }}
       </Button>
 
+      <!-- upload -->
       <input
         ref="fileInput"
         type="file"
@@ -78,8 +69,20 @@ function onFileSelected(event: Event) {
         class="hidden"
         @change="onFileSelected"
       />
-      <Button size="sm" variant="outline" :disabled="uploading" @click="triggerUpload">
-        {{ uploading ? 'Subiendo...' : 'Subir archivos' }}
+      <Button v-if="selectedCount === 0 || !canAdd" :disabled="uploading" @click="triggerUpload">
+        <Plus /> {{ uploading ? 'Subiendo...' : 'Subir Archivo' }}
+      </Button>
+
+      <!-- delete -->
+      <Button
+        v-if="selectedCount > 0"
+        :disabled="bulkAdding || bulkDeleting"
+        variant="outline"
+        class="text-muted-foreground"
+        @click="emit('delete')"
+      >
+        <Loader2 v-if="bulkDeleting" class="animate-spin" />
+        <Trash2 v-else />
       </Button>
     </div>
   </div>

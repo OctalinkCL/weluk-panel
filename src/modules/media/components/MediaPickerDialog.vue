@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef, watch } from 'vue'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { XIcon } from '@lucide/vue'
 import MediaToolbar from './MediaToolbar.vue'
@@ -72,24 +72,25 @@ async function onAdd() {
           @delete="deleteSelected"
           @upload="enqueueFiles"
         />
-        <Button variant="ghost" size="icon-sm" class="shrink-0" @click="emit('update:open', false)">
+        <Button variant="ghost" class="shrink-0" @click="emit('update:open', false)">
           <XIcon />
           <span class="sr-only">Close</span>
         </Button>
       </div>
 
-      <DialogHeader>
+      <!-- <DialogHeader>
         <DialogTitle>Elegir contenido</DialogTitle>
         <DialogDescription>
-          Selecciona uno o más archivos y luego agrégalos a la playlist. Si no está, súbelo aquí mismo.
+          Selecciona uno o más archivos y luego agrégalos a la playlist. Si no está, súbelo aquí
+          mismo.
         </DialogDescription>
-      </DialogHeader>
+      </DialogHeader> -->
 
       <p v-if="error || deleteError || addError" class="text-sm text-destructive">
         {{ error || deleteError || addError }}
       </p>
 
-      <div class="overflow-y-auto">
+      <div class="overflow-y-auto min-h-120 lg:max-h-120">
         <MediaGrid
           :media="media"
           :loading="loading"
