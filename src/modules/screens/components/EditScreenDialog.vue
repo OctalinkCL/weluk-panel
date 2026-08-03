@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useEditScreen } from '../composables/useEditScreen'
@@ -48,7 +47,6 @@ async function onSubmit() {
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Editar pantalla</DialogTitle>
-        <DialogDescription>Actualiza el nombre de la pantalla.</DialogDescription>
       </DialogHeader>
 
       <form class="grid gap-4" @submit.prevent="onSubmit">

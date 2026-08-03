@@ -4,7 +4,7 @@ import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pencil, Trash2, ImageIcon, EllipsisVertical } from '@lucide/vue'
+import { Monitor, Pencil, Trash2, EllipsisVertical } from '@lucide/vue'
 import { useScreens } from './composables/useScreens'
 import { useDeleteScreen } from './composables/useDeleteScreen'
 import { useScreenPresence } from './composables/useScreenPresence'
@@ -13,6 +13,15 @@ import EditScreenDialog from './components/EditScreenDialog.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { Screen, ScreenStatus } from '@/types/screen'
+import {
+  ItemGroup,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from '@/components/ui/item'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,11 +34,9 @@ const { screens, loading, error, fetchScreens } = useScreens(companyId)
 const { deleteScreen, loading: deleting, error: deleteError } = useDeleteScreen()
 const { onlineDeviceUuids, sync: syncPresence } = useScreenPresence()
 
-watch(
-  screens,
-  (list) => syncPresence(list.map((screen) => screen.device_uuid)),
-  { immediate: true },
-)
+watch(screens, (list) => syncPresence(list.map((screen) => screen.device_uuid)), {
+  immediate: true,
+})
 
 const STATUS_LABEL: Record<ScreenStatus, string> = {
   pending: 'Pendiente',
@@ -48,7 +55,10 @@ function openEdit(screen: Screen) {
 // No importa qué ítem de la playlist se muestre — solo sirve de vistazo.
 // Playlists viejas sin thumbnail generado caen al ícono, no al original.
 function screenThumbnailPath(screen: Screen) {
-  return screen.playlist?.playlist_items.find((item) => item.media?.thumbnail_path)?.media?.thumbnail_path ?? null
+  return (
+    screen.playlist?.playlist_items.find((item) => item.media?.thumbnail_path)?.media
+      ?.thumbnail_path ?? null
+  )
 }
 
 const rows = computed(() =>
@@ -74,7 +84,7 @@ function openDeleteConfirm(screen: Screen) {
 
 const deleteConfirmDescription = computed(() =>
   screenToDelete.value
-    ? `¿Eliminar "${screenToDelete.value.name}"? Dejará de reproducir contenido y deberá vincularse de nuevo. Otra company podrá vincular este dispositivo.`
+    ? `¿Eliminar "${screenToDelete.value.name}"? Dejará de reproducir contenido y deberá vincularse de nuevo.`
     : '',
 )
 
@@ -95,18 +105,21 @@ async function onConfirmDelete() {
     <!-- header -->
     <header class="flex items-start justify-between lg:items-center">
       <div class="leading-tight">
-        <h2 class="text-lg font-medium">Screens</h2>
-        <p class="text-sm text-muted-foreground">Pantallas vinculadas a esta company.</p>
+        <h2 class="text-lg font-medium">Pantallas</h2>
+        <p class="text-sm text-muted-foreground">Administra las pantallas de tu empresa.</p>
       </div>
       <PairScreenDialog v-if="companyId" :company-id="companyId" @paired="fetchScreens" />
     </header>
 
+    <!-- error -->
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
 
-    <div v-if="loading" class="grid gap-4 lg:grid-cols-5">
-      <Skeleton class="h-55 bg-stone-200" v-for="i in 5" :key="i" />
+    <!-- loading -->
+    <div v-if="loading" class="grid gap-4 lg:grid-cols-2">
+      <Skeleton class="h-16.5 bg-white rounded" v-for="i in 6" :key="i" />
     </div>
 
+    <!-- empty -->
     <Empty v-else-if="rows.length === 0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
@@ -118,62 +131,57 @@ async function onConfirmDelete() {
     </Empty>
 
     <!-- screens -->
-    <div class="grid gap-4 lg:grid-cols-5" v-else>
-      <!-- grid screens -->
-      <div v-for="row in rows" :key="row.screen.id" class="bg-background rounded p-2 flex flex-col gap-2">
-        <!-- name -->
-        <header class="flex items-center gap-2">
-          <div>
-            <span v-if="row.screen.status !== 'paired'" class="text-sm text-muted-foreground">—</span>
-            <span v-else>
-              <span class="size-3 block rounded-full" :class="row.isOnline ? 'bg-emerald-500' : 'bg-red-400'" />
-            </span>
-          </div>
-          <h6 class="text-base font-semibold">
-            {{ row.screen.name }}
-            <span class="text-xs text-muted-foreground font-normal ml-2">{{ row.statusLabel }}</span>
-          </h6>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <Button variant="outline" size="sm" class="ml-auto w-7">
-                <EllipsisVertical class="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem @click="openEdit(row.screen)">
-                <Pencil class="size-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem @click="openDeleteConfirm(row.screen)">
-                <Trash2 class="size-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-        <!-- image -->
-        <div class="bg-accent rounded h-33 flex items-center justify-center border overflow-hidden">
-          <span v-if="!row.playlistName" class="text-sm text-muted-foreground font-mono">
-            [Sin playlist]
-          </span>
-          <div v-else>
-            <div>
-              <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" loading="lazy"
-                class="size-full object-cover" />
-              <ImageIcon v-else class="size-12 text-stone-400 stroke-1" />
-            </div>
-
-          </div>
-        </div>
-        <!-- playlist -->
-        <p class="border rounded p-2 text-sm">Playlist: <span class="font-semibold">{{ row.playlistName }}</span></p>
-      </div>
+    <div class="grid lg:grid-cols-2 gap-2" v-else>
+      <ItemGroup>
+        <!-- item -->
+        <Item v-for="row in rows" :key="row.screen.id" class="bg-background">
+          <ItemMedia variant="icon" class="bg-neutral-200 size-10 rounded">
+            <Monitor />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle class="flex items-center gap-2">
+              {{ row.screen.name }}
+              <span
+                v-if="row.screen.status === 'paired'"
+                class="size-2 block rounded-full"
+                :class="row.isOnline ? 'bg-emerald-500' : 'bg-stone-300'"
+              />
+            </ItemTitle>
+            <ItemDescription>Playlist: {{ row.playlistName ?? 'Sin playlist' }}</ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="outline" size="sm" class="ml-auto w-7">
+                  <EllipsisVertical class="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem @click="openEdit(row.screen)">
+                  <Pencil class="size-4" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="openDeleteConfirm(row.screen)">
+                  <Trash2 class="size-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ItemActions>
+        </Item>
+        <!-- ./item -->
+      </ItemGroup>
     </div>
   </div>
 
+  <!-- dialogs -->
   <EditScreenDialog v-model:open="editOpen" :screen="selectedScreen" @updated="fetchScreens" />
-
-  <ConfirmDialog v-model:open="confirmDeleteOpen" title="Eliminar pantalla" :description="deleteConfirmDescription"
-    :loading="deleting" :error="deleteError" @confirm="onConfirmDelete" />
+  <ConfirmDialog
+    v-model:open="confirmDeleteOpen"
+    title="Eliminar pantalla"
+    :description="deleteConfirmDescription"
+    :loading="deleting"
+    :error="deleteError"
+    @confirm="onConfirmDelete"
+  />
 </template>

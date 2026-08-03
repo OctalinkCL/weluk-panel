@@ -7,11 +7,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { usePairScreen } from '../composables/usePairScreen'
+
+import { Plus } from '@lucide/vue'
 
 const props = defineProps<{ companyId: string }>()
 const emit = defineEmits<{ paired: [] }>()
@@ -41,12 +42,14 @@ async function onSubmit() {
 <template>
   <Dialog v-model:open="open">
     <DialogTrigger as-child>
-      <Button>Vincular pantalla</Button>
+      <Button class="cursor-pointer">
+        <Plus />
+        Vincular pantalla
+      </Button>
     </DialogTrigger>
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Vincular pantalla</DialogTitle>
-        <DialogDescription>Ingresa el código que muestra la pantalla.</DialogDescription>
       </DialogHeader>
 
       <form class="grid gap-4" @submit.prevent="onSubmit">
