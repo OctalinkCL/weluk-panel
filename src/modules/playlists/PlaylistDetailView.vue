@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, ListVideo, Trash2, Monitor, GripVertical } from '@lucide/vue'
+import { Video, ListVideo, Trash2, Monitor, GripVertical, Info, CircleSlash, CircleCheck, CircleAlert, Loader2 } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
 import { usePlaylistItems } from './composables/usePlaylistItems'
 import { usePublishPlaylist } from './composables/usePublishPlaylist'
@@ -120,23 +120,18 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
 
 <template>
   <div class="grid gap-4 lg:gap-6">
-    <header class="flex items-start justify-between lg:items-center">
+    <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div class="leading-tight">
         <div class="flex items-center gap-2">
-          <h2 class="text-lg font-medium">{{ playlist?.name }}</h2>
-          <p v-if="status" class="text-xs px-2 py-0.5 rounded-full border" :class="status === 'pending'
-            ? 'bg-foreground text-background border-foreground'
-            : 'bg-muted text-muted-foreground border-border'">
-            {{ STATUS_LABEL[status] }}
-            <span v-if="loadingPlaylist">...</span>
-          </p>
+          <h2 class="text-lg font-medium">{{ playlist?.name ? playlist.name : '...' }}</h2>
+
         </div>
         <p class="text-sm text-muted-foreground">
           <template v-if="assignedScreens.length > 0">Pantallas: {{ assignedScreens.join(', ') }}</template>
           <template v-else>Sin pantallas asignadas.</template>
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="grid gap-2 md:flex">
         <Button variant="outline" @click="mediaOpen = true">Agregar contenido</Button>
         <Button variant="outline" @click="assignOpen = true">
           <Monitor class="size-4" />
@@ -148,64 +143,92 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
       </div>
     </header>
 
-    <p v-if="!canPublish" class="text-sm text-muted-foreground">
-      <template v-if="items.length === 0">Agregá al menos un ítem para poder publicar.</template>
-      <template v-else>Asigná al menos una pantalla para poder publicar.</template>
-    </p>
+    <div class="grid gap-2">
+      <p v-if="!canPublish"
+        class="bg-blue-100 gap-2 text-blue-700 text-xs font-medium rounded py-2 px-4 flex items-center">
+        <Info class="size-4 text-blue-400" />
+        <template v-if="items.length === 0">Agregá al menos un ítem para poder publicar.</template>
+        <template v-else>Asigná al menos una pantalla para poder publicar.</template>
+      </p>
 
-    <p v-if="error || publishError || removeError || durationError || reorderError" class="text-sm text-destructive">
-      {{ error || publishError || removeError || durationError || reorderError }}
-    </p>
+      <p v-if="error || publishError || removeError || durationError || reorderError"
+        class="bg-red-100 gap-2 text-red-700 text-xs font-medium rounded py-2 px-4 flex items-center">
+        <CircleSlash class="size-4 text-red-400" />
+        {{ error || publishError || removeError || durationError || reorderError }}
+      </p>
 
-    <div v-if="loading" class="grid gap-2">
-      <Skeleton class="h-20" v-for="i in 3" :key="i" />
+      <div v-if="loading" class="grid gap-2">
+        <Skeleton class="h-20" v-for="i in 3" :key="i" />
+      </div>
+
+      <Empty v-else-if="items.length === 0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ListVideo />
+          </EmptyMedia>
+          <EmptyTitle>Sin contenido</EmptyTitle>
+          <EmptyDescription>Todavía no hay ítems en esta playlist.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+
+      <div class="grid gap-2" v-else>
+        <!-- status -->
+        <p v-if="status" class=" gap-2  text-xs font-medium rounded py-2 px-4 flex items-center" :class="status === 'pending'
+          ? 'bg-amber-200 text-amber-700 border-amber-400'
+          : 'bg-emerald-100 text-emerald-700 border-emerald-300'">
+          <!-- icon -->
+          <CircleCheck v-if="status === 'published'" class="size-4 text-emerald-500" />
+          <CircleAlert v-if="status === 'pending'" class="size-4 text-amber-600" />
+          {{ STATUS_LABEL[status] }}
+          <Loader2 v-if="loadingPlaylist" class="animate-spin size-4" />
+        </p>
+
+        <!-- playlist items -->
+        <VueDraggable v-model="items" handle=".drag-handle" :animation="150" class="grid gap-2" @end="onReorder">
+          <div v-for="(item, index) in items" :key="item.id"
+            class="rounded-lg p-3 bg-background shadow-xs flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <!-- media + index + info -->
+            <div class="flex items-center gap-4">
+              <GripVertical class="drag-handle size-4 text-muted-foreground cursor-grab shrink-0" />
+
+              <span class="text-sm text-muted-foreground text-center shrink-0 mr-3">{{ index + 1 }}</span>
+
+              <div
+                class="h-16 apect-video rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                <img v-if="item.media.thumbnail_path || item.media.type === 'image'"
+                  :src="getMediaPublicUrl(item.media.thumbnail_path ?? item.media.storage_path)" loading="lazy"
+                  class="size-full object-cover" />
+                <Video v-else class="size-6 text-muted-foreground" />
+              </div>
+
+              <p class="text-sm text-muted-foreground capitalize mr-auto">
+                {{ item.media.type === 'image' ? 'Imagen' : 'Video' }}
+                <template v-if="item.media.type === 'video'">
+                  <p class="text-xs font-medium text-blue-600">Duración: {{ item.media.duration_seconds }} seg.</p>
+                </template>
+              </p>
+            </div>
+
+            <!-- actions -->
+            <div class="flex items-center gap-4 justify-between">
+              <div class="flex items-center gap-1 shrink-0">
+                <Input type="number" min="1" class="w-16 h-8 text-sm text-center"
+                  :model-value="item.duration_seconds ?? item.media.duration_seconds"
+                  @change="onDurationChange(item, $event)" />
+                <span class="text-sm text-muted-foreground">s</span>
+              </div>
+
+              <Button size="icon-sm" variant="ghost" class="text-destructive hover:text-destructive shrink-0"
+                :disabled="removing" @click="openRemoveConfirm(item)">
+                <Trash2 class="size-4" />
+              </Button>
+            </div>
+          </div>
+        </VueDraggable>
+      </div>
     </div>
 
-    <Empty v-else-if="items.length === 0">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <ListVideo />
-        </EmptyMedia>
-        <EmptyTitle>Sin contenido</EmptyTitle>
-        <EmptyDescription>Todavía no hay ítems en esta playlist.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
 
-    <VueDraggable v-else v-model="items" handle=".drag-handle" :animation="150" class="grid gap-2" @end="onReorder">
-      <div v-for="(item, index) in items" :key="item.id"
-        class="flex items-center gap-4 border rounded-lg p-3 bg-background">
-        <GripVertical class="drag-handle size-4 text-muted-foreground cursor-grab shrink-0" />
-
-        <span class="text-sm text-muted-foreground w-5 text-center shrink-0">{{ index + 1 }}</span>
-
-        <div class="size-16 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
-          <img v-if="item.media.thumbnail_path || item.media.type === 'image'"
-            :src="getMediaPublicUrl(item.media.thumbnail_path ?? item.media.storage_path)" loading="lazy"
-            class="size-full object-cover" />
-          <Video v-else class="size-6 text-muted-foreground" />
-        </div>
-
-        <div class="flex-1 min-w-0 leading-tight">
-          <p class="text-sm font-medium truncate">{{ fileName(item.media.storage_path) }}</p>
-          <p class="text-xs text-muted-foreground">
-            {{ item.media.type === 'image' ? 'Imagen' : 'Video' }}
-            <template v-if="item.media.type === 'video'">· Original: {{ item.media.duration_seconds }}s</template>
-          </p>
-        </div>
-
-        <div class="flex items-center gap-1 shrink-0">
-          <Input type="number" min="1" class="w-16 h-8 text-sm text-center"
-            :model-value="item.duration_seconds ?? item.media.duration_seconds"
-            @change="onDurationChange(item, $event)" />
-          <span class="text-sm text-muted-foreground">s</span>
-        </div>
-
-        <Button size="icon-sm" variant="ghost" class="text-destructive hover:text-destructive shrink-0"
-          :disabled="removing" @click="openRemoveConfirm(item)">
-          <Trash2 class="size-4" />
-        </Button>
-      </div>
-    </VueDraggable>
   </div>
 
   <MediaPickerDialog v-model:open="mediaOpen" :company-id="companyId" :playlist-id="playlistId" @added="onAdded" />
@@ -213,14 +236,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
   <AssignScreensDialog v-model:open="assignOpen" :company-id="companyId" :playlist-id="playlistId"
     :published-at="playlist?.published_at ?? null" @assigned="onScreensAssigned" />
 
-  <ConfirmDialog
-    v-model:open="confirmRemoveOpen"
-    title="Quitar de la playlist"
-    :description="removeConfirmDescription"
-    confirm-label="Quitar"
-    loading-label="Quitando..."
-    :loading="removing"
-    :error="removeError"
-    @confirm="onConfirmRemove"
-  />
+  <ConfirmDialog v-model:open="confirmRemoveOpen" title="Quitar de la playlist" :description="removeConfirmDescription"
+    confirm-label="Quitar" loading-label="Quitando..." :loading="removing" :error="removeError"
+    @confirm="onConfirmRemove" />
 </template>
