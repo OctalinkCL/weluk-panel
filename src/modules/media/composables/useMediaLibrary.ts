@@ -58,8 +58,12 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
         next.status = 'uploading'
         const { media: uploaded, error: uploadErr } = await uploadMedia(companyId, next.file)
         if (uploaded) {
+          // Insertar directo en vez de refetchear: evita el doble reflow del
+          // grid (uno al sacar el spinner de `queue`, otro más tarde al volver
+          // el fetch) y ahorra un round-trip de red por archivo. `uploaded` ya
+          // es la fila completa que devuelve el insert.
           queue.value = queue.value.filter((q) => q.id !== next!.id)
-          await fetchMedia()
+          media.value = [uploaded, ...media.value]
         } else {
           next.status = 'error'
           next.error = uploadErr
