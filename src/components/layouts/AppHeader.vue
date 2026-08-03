@@ -20,8 +20,6 @@ async function onLogout() {
   await authStore.logout()
   router.push({ name: 'login' })
 }
-
-console.debug('authStore', authStore.profile)
 </script>
 
 <template>
@@ -32,7 +30,7 @@ console.debug('authStore', authStore.profile)
 
     <DropdownMenu>
       <DropdownMenuTrigger as-child>
-        <Button variant="outline" class="cursor-pointer">
+        <Button variant="outline" class="cursor-pointer ml-auto">
           {{ authStore.profile?.full_name || 'Perfil' }}
           <ChevronDown class="ml-2 h-4 w-4" />
         </Button>

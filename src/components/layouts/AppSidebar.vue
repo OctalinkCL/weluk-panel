@@ -7,7 +7,7 @@ import NavFooter from '@/components/layouts/NavFooter.vue'
 </script>
 
 <template>
-  <Sidebar>
+  <Sidebar class="px-1">
     <SidebarHeader>
       <NavHeader />
     </SidebarHeader>
