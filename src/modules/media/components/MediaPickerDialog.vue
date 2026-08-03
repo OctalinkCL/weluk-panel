@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { XIcon } from '@lucide/vue'
 import MediaToolbar from './MediaToolbar.vue'
 import MediaGrid from './MediaGrid.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { useMediaLibrary } from '../composables/useMediaLibrary'
 
 const props = defineProps<{
@@ -35,7 +36,10 @@ const {
   bulkAdding,
   bulkDeleting,
   addSelected,
-  deleteSelected,
+  deleteConfirmOpen,
+  deleteConfirmDescription,
+  requestDelete,
+  confirmDelete,
 } = useMediaLibrary(props.companyId, toRef(props, 'playlistId'))
 
 // Reset al reabrir, no al agregar — así la selección no desaparece de
@@ -77,7 +81,7 @@ async function onAdd() {
           @select-all="selectAll"
           @clear="clearSelection"
           @add="onAdd"
-          @delete="deleteSelected"
+          @delete="requestDelete"
           @upload="enqueueFiles"
         />
         <Button variant="ghost" class="shrink-0" @click="emit('update:open', false)">
@@ -105,4 +109,13 @@ async function onAdd() {
       </div>
     </DialogContent>
   </Dialog>
+
+  <ConfirmDialog
+    v-model:open="deleteConfirmOpen"
+    title="Eliminar archivos"
+    :description="deleteConfirmDescription"
+    :loading="bulkDeleting"
+    :error="deleteError"
+    @confirm="confirmDelete"
+  />
 </template>

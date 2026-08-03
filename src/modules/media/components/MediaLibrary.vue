@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MediaToolbar from './MediaToolbar.vue'
 import MediaGrid from './MediaGrid.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { useMediaLibrary } from '../composables/useMediaLibrary'
 
 const props = defineProps<{ companyId: string }>()
@@ -22,7 +23,10 @@ const {
   mediaIdsInPlaylist,
   bulkAdding,
   bulkDeleting,
-  deleteSelected,
+  deleteConfirmOpen,
+  deleteConfirmDescription,
+  requestDelete,
+  confirmDelete,
 } = useMediaLibrary(props.companyId)
 </script>
 
@@ -38,7 +42,7 @@ const {
       :can-add="false"
       @select-all="selectAll"
       @clear="clearSelection"
-      @delete="deleteSelected"
+      @delete="requestDelete"
       @upload="enqueueFiles"
     />
 
@@ -52,6 +56,15 @@ const {
       :media-ids-in-playlist="mediaIdsInPlaylist"
       @toggle="toggleSelected"
       @remove-queued="removeFromQueue"
+    />
+
+    <ConfirmDialog
+      v-model:open="deleteConfirmOpen"
+      title="Eliminar archivos"
+      :description="deleteConfirmDescription"
+      :loading="bulkDeleting"
+      :error="deleteError"
+      @confirm="confirmDelete"
     />
   </div>
 </template>

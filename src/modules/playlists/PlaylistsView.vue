@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { useCurrentCompanySlug } from '@/composables/useCurrentCompanySlug'
@@ -11,6 +11,7 @@ import { ListVideo, Trash2, ImageIcon } from '@lucide/vue'
 import { usePlaylists } from './composables/usePlaylists'
 import { useDeletePlaylist } from './composables/useDeletePlaylist'
 import CreatePlaylistDialog from './components/CreatePlaylistDialog.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { formatDate } from '@/lib/utils'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { Playlist, PlaylistWithThumbnail } from '@/types/playlist'
@@ -21,7 +22,7 @@ const router = useRouter()
 const companyId = useCurrentCompanyId().value!
 const companySlug = useCurrentCompanySlug().value!
 const { playlists, loading, error, fetchPlaylists } = usePlaylists(companyId)
-const { deletePlaylist, getScreensUsing, loading: deleting } = useDeletePlaylist()
+const { deletePlaylist, getScreensUsing, loading: deleting, error: deleteError } = useDeletePlaylist()
 
 function playlistThumbnailUrl(playlist: PlaylistWithThumbnail) {
   const thumbnailPath = playlist.playlist_items[0]?.media?.thumbnail_path
@@ -39,15 +40,33 @@ function goToDetail(playlistId: string) {
   router.push({ name: 'playlist-detail', params: { companySlug, playlistId } })
 }
 
-async function onDelete(playlist: Playlist) {
-  const screenNames = await getScreensUsing(playlist.id)
-  const usageWarning =
-    screenNames.length > 0
-      ? ` Está asignada a: ${screenNames.join(', ')}. Esas pantallas se quedarán sin playlist.`
-      : ''
+const confirmDeleteOpen = ref(false)
+const playlistToDelete = ref<Playlist | null>(null)
+const screenNamesUsing = ref<string[]>([])
 
-  if (!confirm(`¿Eliminar "${playlist.name}"?${usageWarning}`)) return
-  await deletePlaylist(playlist.id)
+async function openDeleteConfirm(playlist: Playlist) {
+  playlistToDelete.value = playlist
+  screenNamesUsing.value = await getScreensUsing(playlist.id)
+  confirmDeleteOpen.value = true
+}
+
+const deleteConfirmDescription = computed(() => {
+  if (!playlistToDelete.value) return ''
+  const usageWarning =
+    screenNamesUsing.value.length > 0
+      ? ` Está asignada a: ${screenNamesUsing.value.join(', ')}. Esas pantallas se quedarán sin playlist.`
+      : ''
+  return `¿Eliminar "${playlistToDelete.value.name}"?${usageWarning}`
+})
+
+async function onConfirmDelete() {
+  if (!playlistToDelete.value) return
+
+  const ok = await deletePlaylist(playlistToDelete.value.id)
+  if (!ok) return
+
+  confirmDeleteOpen.value = false
+  playlistToDelete.value = null
   await fetchPlaylists()
 }
 </script>
@@ -109,7 +128,7 @@ async function onDelete(playlist: Playlist) {
             <TableCell class="text-right">
               <div class="flex items-center justify-end" @click.stop>
                 <Button size="sm" variant="ghost" class="text-destructive hover:text-destructive" :disabled="deleting"
-                  @click="onDelete(row.playlist)">
+                  @click="openDeleteConfirm(row.playlist)">
                   <Trash2 class="size-4" />
                   Eliminar
                 </Button>
@@ -120,4 +139,13 @@ async function onDelete(playlist: Playlist) {
       </Table>
     </div>
   </div>
+
+  <ConfirmDialog
+    v-model:open="confirmDeleteOpen"
+    title="Eliminar playlist"
+    :description="deleteConfirmDescription"
+    :loading="deleting"
+    :error="deleteError"
+    @confirm="onConfirmDelete"
+  />
 </template>

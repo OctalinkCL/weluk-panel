@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -10,12 +10,13 @@ import { useCompanies } from './composables/useCompanies'
 import { useToggleCompany } from './composables/useToggleCompany'
 import CreateCompanyDialog from './components/CreateCompanyDialog.vue'
 import EditCompanyDialog from './components/EditCompanyDialog.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { formatDate } from '@/lib/utils'
 import type { Company } from '@/types/company'
 
 const router = useRouter()
 const { companies, loading, error, fetchCompanies } = useCompanies()
-const { toggleCompany, loading: toggling } = useToggleCompany()
+const { toggleCompany, loading: toggling, error: toggleError } = useToggleCompany()
 
 const editOpen = ref(false)
 const selectedCompany = ref<Company | null>(null)
@@ -29,10 +30,27 @@ function openEdit(company: Company) {
   editOpen.value = true
 }
 
-async function onToggle(company: Company) {
-  const action = company.is_active ? 'deshabilitar' : 'habilitar'
-  if (!confirm(`¿Seguro que deseas ${action} "${company.name}"?`)) return
-  await toggleCompany(company.id, !company.is_active)
+const confirmToggleOpen = ref(false)
+const companyToToggle = ref<Company | null>(null)
+
+function openToggleConfirm(company: Company) {
+  companyToToggle.value = company
+  confirmToggleOpen.value = true
+}
+
+const toggleAction = computed(() => (companyToToggle.value?.is_active ? 'deshabilitar' : 'habilitar'))
+const toggleConfirmDescription = computed(() =>
+  companyToToggle.value ? `¿Seguro que deseas ${toggleAction.value} "${companyToToggle.value.name}"?` : '',
+)
+
+async function onConfirmToggle() {
+  if (!companyToToggle.value) return
+
+  await toggleCompany(companyToToggle.value.id, !companyToToggle.value.is_active)
+  if (toggleError.value) return
+
+  confirmToggleOpen.value = false
+  companyToToggle.value = null
   await fetchCompanies()
 }
 </script>
@@ -100,7 +118,7 @@ async function onToggle(company: Company) {
                   variant="ghost"
                   class="text-destructive hover:text-destructive"
                   :disabled="toggling"
-                  @click="onToggle(company)"
+                  @click="openToggleConfirm(company)"
                 >
                   {{ company.is_active ? 'Deshabilitar' : 'Habilitar' }}
                 </Button>
@@ -116,5 +134,17 @@ async function onToggle(company: Company) {
     v-model:open="editOpen"
     :company="selectedCompany"
     @updated="fetchCompanies"
+  />
+
+  <ConfirmDialog
+    v-model:open="confirmToggleOpen"
+    :title="companyToToggle?.is_active ? 'Deshabilitar company' : 'Habilitar company'"
+    :description="toggleConfirmDescription"
+    :confirm-label="companyToToggle?.is_active ? 'Deshabilitar' : 'Habilitar'"
+    loading-label="Guardando..."
+    :variant="companyToToggle?.is_active ? 'destructive' : 'default'"
+    :loading="toggling"
+    :error="toggleError"
+    @confirm="onConfirmToggle"
   />
 </template>

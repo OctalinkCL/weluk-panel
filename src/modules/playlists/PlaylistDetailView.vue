@@ -17,6 +17,7 @@ import { useUpdatePlaylistItem } from './composables/useUpdatePlaylistItem'
 import { useReorderPlaylistItems } from './composables/useReorderPlaylistItems'
 import MediaPickerDialog from '@/modules/media/components/MediaPickerDialog.vue'
 import AssignScreensDialog from './components/AssignScreensDialog.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
 
@@ -70,9 +71,28 @@ async function onPublish() {
   await fetchPlaylist()
 }
 
-async function onRemoveItem(item: PlaylistItemWithMedia) {
-  if (!confirm(`¿Quitar "${fileName(item.media.storage_path)}" de esta playlist? El archivo no se elimina.`)) return
-  await deletePlaylistItem(item.id)
+const confirmRemoveOpen = ref(false)
+const itemToRemove = ref<PlaylistItemWithMedia | null>(null)
+
+function openRemoveConfirm(item: PlaylistItemWithMedia) {
+  itemToRemove.value = item
+  confirmRemoveOpen.value = true
+}
+
+const removeConfirmDescription = computed(() =>
+  itemToRemove.value
+    ? `¿Quitar "${fileName(itemToRemove.value.media.storage_path)}" de esta playlist? El archivo no se elimina.`
+    : '',
+)
+
+async function onConfirmRemove() {
+  if (!itemToRemove.value) return
+
+  const ok = await deletePlaylistItem(itemToRemove.value.id)
+  if (!ok) return
+
+  confirmRemoveOpen.value = false
+  itemToRemove.value = null
   await fetchItems()
   await fetchPlaylist()
 }
@@ -181,7 +201,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
         </div>
 
         <Button size="icon-sm" variant="ghost" class="text-destructive hover:text-destructive shrink-0"
-          :disabled="removing" @click="onRemoveItem(item)">
+          :disabled="removing" @click="openRemoveConfirm(item)">
           <Trash2 class="size-4" />
         </Button>
       </div>
@@ -192,4 +212,15 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
 
   <AssignScreensDialog v-model:open="assignOpen" :company-id="companyId" :playlist-id="playlistId"
     :published-at="playlist?.published_at ?? null" @assigned="onScreensAssigned" />
+
+  <ConfirmDialog
+    v-model:open="confirmRemoveOpen"
+    title="Quitar de la playlist"
+    :description="removeConfirmDescription"
+    confirm-label="Quitar"
+    loading-label="Quitando..."
+    :loading="removing"
+    :error="removeError"
+    @confirm="onConfirmRemove"
+  />
 </template>

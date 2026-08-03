@@ -119,7 +119,10 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
     }
   }
 
-  async function deleteSelected() {
+  const deleteConfirmOpen = ref(false)
+  const deleteConfirmDescription = ref('')
+
+  async function requestDelete() {
     const ids = Array.from(selectedIds.value)
     if (ids.length === 0) return
 
@@ -128,8 +131,12 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
       ? ' Algunos están en uso en playlists — se quitarán de ahí, y las que ya estén publicadas se actualizarán solas.'
       : ''
 
-    if (!confirm(`¿Eliminar ${ids.length} archivo${ids.length > 1 ? 's' : ''}?${usageWarning} Esta acción no se puede deshacer.`))
-      return
+    deleteConfirmDescription.value = `¿Eliminar ${ids.length} archivo${ids.length > 1 ? 's' : ''}?${usageWarning} Esta acción no se puede deshacer.`
+    deleteConfirmOpen.value = true
+  }
+
+  async function confirmDelete() {
+    const ids = Array.from(selectedIds.value)
 
     bulkDeleting.value = true
     try {
@@ -139,6 +146,7 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
       }
       clearSelection()
       await fetchMedia()
+      deleteConfirmOpen.value = false
     } finally {
       bulkDeleting.value = false
     }
@@ -165,7 +173,10 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
     bulkAdding,
     bulkDeleting,
     addSelected,
-    deleteSelected,
+    deleteConfirmOpen,
+    deleteConfirmDescription,
+    requestDelete,
+    confirmDelete,
     canAdd: computed(() => !!playlistId?.value),
   }
 }
