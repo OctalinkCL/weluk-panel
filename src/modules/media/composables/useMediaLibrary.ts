@@ -157,6 +157,7 @@ export function useMediaLibrary(companyId: string, playlistId?: Ref<string | und
     selectAll,
     clearSelection,
     mediaIdsInPlaylist,
+    fetchExistingItems,
     bulkAdding,
     bulkDeleting,
     addSelected,

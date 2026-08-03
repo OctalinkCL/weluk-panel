@@ -31,6 +31,7 @@ const {
   selectAll,
   clearSelection,
   mediaIdsInPlaylist,
+  fetchExistingItems,
   bulkAdding,
   bulkDeleting,
   addSelected,
@@ -38,11 +39,18 @@ const {
 } = useMediaLibrary(props.companyId, toRef(props, 'playlistId'))
 
 // Reset al reabrir, no al agregar — así la selección no desaparece de
-// golpe mientras el modal sigue visible cerrándose.
+// golpe mientras el modal sigue visible cerrándose. También hay que
+// refetchear qué media ya está en la playlist: este dialog queda montado
+// durante toda la vida de PlaylistDetailView, así que sin esto un delete
+// hecho fuera del picker (ej. desde la lista de la playlist) deja
+// mediaIdsInPlaylist desactualizado hasta un refresh de página.
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen) clearSelection()
+    if (isOpen) {
+      clearSelection()
+      fetchExistingItems()
+    }
   },
 )
 
