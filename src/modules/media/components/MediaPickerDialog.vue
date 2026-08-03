@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef, watch } from 'vue'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { XIcon } from '@lucide/vue'
 import MediaToolbar from './MediaToolbar.vue'
@@ -78,13 +78,7 @@ async function onAdd() {
         </Button>
       </div>
 
-      <!-- <DialogHeader>
-        <DialogTitle>Elegir contenido</DialogTitle>
-        <DialogDescription>
-          Selecciona uno o más archivos y luego agrégalos a la playlist. Si no está, súbelo aquí
-          mismo.
-        </DialogDescription>
-      </DialogHeader> -->
+      <DialogTitle class="sr-only">Elegir contenido</DialogTitle>
 
       <p v-if="error || deleteError || addError" class="text-sm text-destructive">
         {{ error || deleteError || addError }}

@@ -44,7 +44,7 @@ function fileName(storagePath: string) {
       </EmptyHeader>
     </Empty>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+    <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-2">
       <!-- items en cola -->
       <div v-for="item in queue" :key="item.id" class="relative border rounded-lg overflow-hidden">
         <div class="aspect-video bg-muted flex items-center justify-center relative">
