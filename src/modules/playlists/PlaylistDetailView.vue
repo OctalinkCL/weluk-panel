@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import { Video, ListVideo, Trash2, Monitor, GripVertical, Info, CircleSlash, CircleCheck, CircleAlert, Loader2 } from '@lucide/vue'
+import { Video, ListVideo, Trash2, Monitor, GripVertical, Info, CircleSlash, CircleCheck, CircleAlert, Loader2, ArrowLeft } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
 import { usePlaylistItems } from './composables/usePlaylistItems'
 import { usePublishPlaylist } from './composables/usePublishPlaylist'
@@ -22,9 +21,14 @@ import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
 
 const route = useRoute()
+const router = useRouter()
 // La vista se monta por ruta, así que el id no cambia mientras vive.
 const companyId = useCurrentCompanyId().value!
 const playlistId = route.params.playlistId as string
+
+function goBack() {
+  router.push({ name: 'playlists', params: { companySlug: route.params.companySlug } })
+}
 
 const { playlist, loading: loadingPlaylist, fetchPlaylist } = usePlaylist(playlistId)
 const { items, loading, error, fetchItems } = usePlaylistItems(playlistId)
@@ -128,6 +132,10 @@ async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
     </Transition>
     <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div class="leading-tight">
+        <Button variant="ghost" size="sm" class="-ml-3 mb-1" @click="goBack">
+          <ArrowLeft class="size-4" />
+          Playlists
+        </Button>
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-medium">{{ playlist?.name ? playlist.name : 'Cargando' }}</h2>
 
@@ -163,11 +171,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
         {{ error || publishError || removeError || durationError || reorderError }}
       </p>
 
-      <div v-if="loading" class="grid gap-2">
-        <Skeleton class="h-38.25 md:h-22 bg-background shadow-xs" v-for="i in 6" :key="i" />
-      </div>
-
-      <Empty v-else-if="items.length === 0">
+      <Empty v-if="items.length === 0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <ListVideo />
