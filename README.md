@@ -1,6 +1,6 @@
-# .scaffold-tmp
+# weluk-panel
 
-This template should help get you started developing with Vue 3 in Vite.
+Panel de administración de Weluk (Vue 3 + Vite + TypeScript). Ver `CLAUDE.md` para contexto completo del producto.
 
 ## Recommended IDE Setup
 
@@ -25,25 +25,28 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
+Este proyecto usa **pnpm** (fijado en `package.json` vía `packageManager`). No usar `npm install` / `yarn`.
+
 ```sh
-npm install
+pnpm install
 ```
+
+Copiar `.env.example` a `.env` y completar con las credenciales del proyecto Supabase (Project Settings → API).
 
 ### Compile and Hot-Reload for Development
 
 ```sh
-npm run dev
+pnpm dev
 ```
 
 ### Type-Check, Compile and Minify for Production
 
 ```sh
-npm run build
+pnpm build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint with [ESLint](https://eslint.org/) + [oxlint](https://oxc.rs/docs/guide/usage/linter.html)
 
 ```sh
-npm run lint
+pnpm lint
 ```
-# weluk-panel
