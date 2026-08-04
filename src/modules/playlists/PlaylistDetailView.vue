@@ -119,11 +119,17 @@ async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
 </script>
 
 <template>
-  <div class="grid gap-4 lg:gap-6">
+  <div class="grid gap-4 lg:gap-6 relative">
+    <Transition leave-active-class="transition-opacity duration-200" leave-to-class="opacity-0">
+      <div class="absolute w-full h-[90vh] bg-[#f9f9f9] top-0 bottom-0 z-10 flex justify-center items-center"
+        v-if="loading">
+        <Loader2 class="size-12 stroke-1 animate-spin" />
+      </div>
+    </Transition>
     <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div class="leading-tight">
         <div class="flex items-center gap-2">
-          <h2 class="text-lg font-medium">{{ playlist?.name ? playlist.name : '...' }}</h2>
+          <h2 class="text-lg font-medium">{{ playlist?.name ? playlist.name : 'Cargando' }}</h2>
 
         </div>
         <p class="text-sm text-muted-foreground">
@@ -158,7 +164,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
       </p>
 
       <div v-if="loading" class="grid gap-2">
-        <Skeleton class="h-20" v-for="i in 3" :key="i" />
+        <Skeleton class="h-38.25 md:h-22 bg-background shadow-xs" v-for="i in 6" :key="i" />
       </div>
 
       <Empty v-else-if="items.length === 0">
@@ -173,7 +179,7 @@ async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
 
       <div class="grid gap-2" v-else>
         <!-- status -->
-        <p v-if="status" class=" gap-2  text-xs font-medium rounded py-2 px-4 flex items-center" :class="status === 'pending'
+        <p v-if="status && !loading" class=" gap-2  text-xs font-medium rounded py-2 px-4 flex items-center" :class="status === 'pending'
           ? 'bg-amber-200 text-amber-700 border-amber-400'
           : 'bg-emerald-100 text-emerald-700 border-emerald-300'">
           <!-- icon -->
