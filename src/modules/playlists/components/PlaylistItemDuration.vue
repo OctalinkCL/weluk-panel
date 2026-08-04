@@ -100,7 +100,7 @@ onUnmounted(() => clearTimeout(timer))
         <SelectTrigger size="sm" class="w-15 text-xs border-0 font-mono">
           <SelectValue>{{ pad(seconds) }}</SelectValue>
         </SelectTrigger>
-        <SelectContent position="popper" class="max-h-40 min-w-15 font-mono p-px">
+        <SelectContent position="popper" class="max-h-80 min-w-15 font-mono p-px">
           <SelectItem v-for="s in UNITS" :key="s" :value="String(s)" class="text-xs">
             {{ pad(s) }}
           </SelectItem>
