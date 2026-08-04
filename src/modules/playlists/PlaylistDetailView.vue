@@ -5,7 +5,6 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { useCurrentCompanyId } from '@/composables/useCurrentCompanyId'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Video, ListVideo, Trash2, Monitor, GripVertical, Info, CircleSlash, CircleCheck, CircleAlert, Loader2 } from '@lucide/vue'
 import { usePlaylist } from './composables/usePlaylist'
@@ -17,6 +16,7 @@ import { useUpdatePlaylistItem } from './composables/useUpdatePlaylistItem'
 import { useReorderPlaylistItems } from './composables/useReorderPlaylistItems'
 import MediaPickerDialog from '@/modules/media/components/MediaPickerDialog.vue'
 import AssignScreensDialog from './components/AssignScreensDialog.vue'
+import PlaylistItemDuration from './components/PlaylistItemDuration.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import { getMediaPublicUrl } from '@/lib/mediaStorage'
 import type { PlaylistItemWithMedia } from '@/types/playlist'
@@ -107,9 +107,9 @@ async function onReorder() {
   await fetchPlaylist()
 }
 
-async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
-  const value = Math.round(Number((event.target as HTMLInputElement).value))
-  if (!Number.isFinite(value) || value <= 0) return
+// PlaylistItemDuration ya valida, clampea y coalesce — acá solo llega un entero
+// >= 1 que efectivamente cambió.
+async function onDurationChange(item: PlaylistItemWithMedia, value: number) {
   const ok = await updateDuration(item.id, value)
   if (ok) {
     item.duration_seconds = value
@@ -212,10 +212,8 @@ async function onDurationChange(item: PlaylistItemWithMedia, event: Event) {
             <!-- actions -->
             <div class="flex items-center gap-4 justify-between">
               <div class="flex items-center gap-1 shrink-0">
-                <Input type="number" min="1" class="w-16 h-8 text-sm text-center"
-                  :model-value="item.duration_seconds ?? item.media.duration_seconds"
-                  @change="onDurationChange(item, $event)" />
-                <span class="text-sm text-muted-foreground">s</span>
+                <PlaylistItemDuration :model-value="item.duration_seconds ?? item.media.duration_seconds"
+                  @commit="onDurationChange(item, $event)" />
               </div>
 
               <Button size="icon-sm" variant="ghost" class="text-destructive hover:text-destructive shrink-0"
