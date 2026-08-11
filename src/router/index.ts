@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from './auth.routes'
 import { superadminRoutes } from './superadmin.routes'
 import { workspaceRoutes } from './workspace.routes'
+import { accountRoutes } from './account.routes'
 import { authGuard } from './guards'
 
 const router = createRouter({
@@ -14,6 +15,7 @@ const router = createRouter({
     ...authRoutes,
     ...superadminRoutes,
     ...workspaceRoutes,
+    ...accountRoutes,
   ],
 })
 

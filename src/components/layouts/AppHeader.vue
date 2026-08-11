@@ -53,7 +53,9 @@ async function onLogout() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem class="h-8 px-3 cursor-pointer">Perfil</DropdownMenuItem>
+        <DropdownMenuItem as-child class="h-8 px-3 cursor-pointer">
+          <router-link :to="{ name: 'profile' }">Perfil</router-link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer"
           >Cerrar sesión</DropdownMenuItem
