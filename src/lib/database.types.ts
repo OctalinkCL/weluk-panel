@@ -270,6 +270,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      update_own_profile: {
+        Args: { p_full_name: string }
+        Returns: {
+          id: string
+          company_id: string | null
+          role: string
+          full_name: string | null
+          created_at: string
+        }
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
