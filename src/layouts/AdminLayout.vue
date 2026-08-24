@@ -20,7 +20,7 @@ async function onLogout() {
 <template>
   <SidebarProvider>
     <AppSidebar />
-    <SidebarInset class="bg-[#f9f9f9]">
+    <SidebarInset class="bg-[#F6F7FA]">
       <AppHeader />
       <div class="p-4 lg:p-6">
         <router-view />
