@@ -12,10 +12,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useCurrentCompanySlug } from '@/composables/useCurrentCompanySlug'
 // import { ChevronDown } from '@lucide/vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const companySlug = useCurrentCompanySlug()
 
 const userInitial = computed(
   () => authStore.profile?.full_name?.trim().charAt(0).toUpperCase() ?? '',
@@ -53,7 +55,9 @@ async function onLogout() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem class="h-8 px-3 cursor-pointer">Perfil</DropdownMenuItem>
+        <DropdownMenuItem as-child class="h-8 px-3 cursor-pointer">
+          <router-link :to="{ name: 'profile', params: { companySlug } }">Perfil</router-link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer"
           >Cerrar sesión</DropdownMenuItem
