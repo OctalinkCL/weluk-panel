@@ -44,11 +44,6 @@ export const workspaceRoutes: RouteRecordRaw[] = [
         meta: { roles: ['superadmin'] },
         component: () => import('@/modules/users/UsersView.vue'),
       },
-      {
-        path: 'profile',
-        name: 'profile',
-        component: () => import('@/modules/profile/ProfileView.vue'),
-      },
     ],
   },
 ]
