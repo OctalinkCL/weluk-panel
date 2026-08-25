@@ -65,16 +65,10 @@ async function onSavePassword() {
 
       <!-- datos personales -->
       <TabsContent value="data">
-        <form class="grid gap-4 rounded-lg border bg-background p-6 shadow-xs" @submit.prevent="onSaveName">
+        <form class="grid gap-4 rounded-lg bg-background p-6 shadow-xs" @submit.prevent="onSaveName">
           <div class="grid gap-1.5">
             <label for="profile-name" class="text-sm font-medium">Nombre</label>
-            <Input
-              id="profile-name"
-              v-model="fullName"
-              required
-              placeholder="Tu nombre"
-              @input="nameSaved = false"
-            />
+            <Input id="profile-name" v-model="fullName" required placeholder="Tu nombre" @input="nameSaved = false" />
           </div>
 
           <div class="grid gap-1.5">
@@ -93,33 +87,17 @@ async function onSavePassword() {
 
       <!-- contraseña -->
       <TabsContent value="password">
-        <form class="grid gap-4 rounded-lg border bg-background p-6 shadow-xs" @submit.prevent="onSavePassword">
+        <form class="grid gap-4 rounded-lg bg-background p-6 shadow-xs" @submit.prevent="onSavePassword">
           <div class="grid gap-1.5">
             <label for="profile-new-password" class="text-sm font-medium">Nueva contraseña</label>
-            <Input
-              id="profile-new-password"
-              v-model="newPassword"
-              type="password"
-              required
-              minlength="6"
-              placeholder="••••••••"
-              @input="passwordSaved = false"
-            />
+            <Input id="profile-new-password" v-model="newPassword" type="password" required minlength="6"
+              placeholder="••••••••" @input="passwordSaved = false" />
           </div>
 
           <div class="grid gap-1.5">
-            <label for="profile-confirm-password" class="text-sm font-medium"
-              >Confirmar contraseña</label
-            >
-            <Input
-              id="profile-confirm-password"
-              v-model="confirmPassword"
-              type="password"
-              required
-              minlength="6"
-              placeholder="••••••••"
-              @input="passwordSaved = false"
-            />
+            <label for="profile-confirm-password" class="text-sm font-medium">Confirmar contraseña</label>
+            <Input id="profile-confirm-password" v-model="confirmPassword" type="password" required minlength="6"
+              placeholder="••••••••" @input="passwordSaved = false" />
           </div>
 
           <p v-if="passwordError" class="text-sm text-destructive">{{ passwordError }}</p>

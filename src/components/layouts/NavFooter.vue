@@ -38,10 +38,10 @@ async function onLogout() {
             <div class="grid flex-1 text-left leading-tight">
               <span class="truncate font-semibold text-sm">{{
                 authStore.profile?.full_name
-              }}</span>
+                }}</span>
               <span class="truncate text-xs text-muted-foreground">{{
                 authStore.user?.email
-              }}</span>
+                }}</span>
             </div>
           </SidebarMenuButton>
         </DropdownMenuTrigger>
@@ -60,14 +60,9 @@ async function onLogout() {
             <router-link :to="{ name: 'profile' }">Perfil</router-link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer"
-            >Cerrar sesión</DropdownMenuItem
-          >
+          <DropdownMenuItem @click="onLogout" class="h-8 px-3 cursor-pointer">Cerrar sesión</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </SidebarMenuItem>
-    <SidebarMenuItem>
-      <div class="px-2 py-1 text-xs text-muted-foreground">v1.1 - Weluk Digital Signage</div>
     </SidebarMenuItem>
   </SidebarMenu>
 </template>
