@@ -11,7 +11,7 @@ const authStore = useAuthStore()
   <SidebarMenu>
     <!-- logo -->
     <SidebarMenuItem class="pt-3 pb-5 flex items-center justify-between">
-      <AppLogo class="w-24 fill-primary" />
+      <AppLogo class="w-30 fill-emerald-950" />
     </SidebarMenuItem>
     <!-- company switcher -->
     <SidebarMenuItem v-if="authStore.role === 'superadmin'">
