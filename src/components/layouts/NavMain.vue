@@ -11,11 +11,26 @@ import {
 import { Building2, Monitor, ListVideo, Images, Users } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrentCompanySlug } from '@/composables/useCurrentCompanySlug'
+import { useCurrentCompanyStore } from '@/stores/currentCompany'
 import type { Role } from '@/types/profile'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const companySlug = useCurrentCompanySlug()
+const routeCompanySlug = useCurrentCompanySlug()
+const currentCompanyStore = useCurrentCompanyStore()
+
+// Fuera de `/c/:companySlug` (ej. /profile) no hay slug en la URL. Un
+// company_admin tiene una sola company siempre (profile.company, ya
+// resuelto en cada fetchProfile — sobrevive un reload en frío, a diferencia
+// del store de navegación) así que ni siquiera depende de la URL. Un
+// superadmin no tiene company fija: usa la última resuelta por guards.ts en
+// esta sesión (currentCompanyStore), que se pierde en una carga en frío de
+// una ruta sin slug — aceptado a propósito (superadmin tiene workaround
+// manual: entrar primero por Companies).
+const companySlug = computed(() => {
+  if (authStore.role === 'company_admin') return authStore.profile?.company?.slug ?? null
+  return routeCompanySlug.value ?? currentCompanyStore.company?.slug ?? null
+})
 
 // `companyScoped: true` = la ruta vive bajo `/c/:companySlug` y necesita el
 // slug en el link; las de gestión de companies (superadmin) no.
