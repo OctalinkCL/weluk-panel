@@ -6,22 +6,25 @@ import AppSidebar from '@/components/layouts/AppSidebar.vue'
 import AppHeader from '@/components/layouts/AppHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrentCompanyStore } from '@/stores/currentCompany'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const companyStore = useCurrentCompanyStore()
+const isMobile = useIsMobile()
 
 async function onLogout() {
   await authStore.logout()
   router.push({ name: 'login' })
 }
+
 </script>
 
 <template>
   <SidebarProvider>
     <AppSidebar />
-    <SidebarInset class="bg-[#f9f9f9]">
-      <AppHeader />
+    <SidebarInset class="bg-slate-100">
+      <AppHeader v-if="isMobile" />
       <div class="p-4 lg:p-6">
         <router-view />
       </div>
@@ -32,12 +35,9 @@ async function onLogout() {
     resto de la app sigue vacía igual — las policies de RLS (auth_active_company_id())
     devuelven cero filas para una company deshabilitada, con o sin este overlay.
   -->
-  <div
-    v-if="
-      authStore.role === 'company_admin' && companyStore.company && !companyStore.company.is_active
-    "
-    class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6"
-  >
+  <div v-if="
+    authStore.role === 'company_admin' && companyStore.company && !companyStore.company.is_active
+  " class="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-6">
     <div class="max-w-sm text-center grid gap-3">
       <h2 class="text-lg font-medium">Cuenta deshabilitada</h2>
       <p class="text-sm text-muted-foreground">

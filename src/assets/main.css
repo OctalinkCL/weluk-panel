@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap'); /*---break---*/
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
@@ -57,7 +56,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(37.2% 0.044 257.287); /*oklch(0.205 0 0)*/
+  --primary: oklch(27.7% 0.046 192.524); /*oklch(0.205 0 0)*/
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);

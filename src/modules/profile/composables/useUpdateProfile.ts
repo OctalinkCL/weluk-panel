@@ -1,35 +1,34 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import type { Profile } from '@/types/profile'
 
-// Usa la RPC `update_own_profile` en vez de un UPDATE directo sobre la
-// tabla: `profiles` no tiene (a propósito) una policy de UPDATE plana,
-// porque eso dejaría reescribir `role`/`company_id` de la propia fila
-// (RLS es por fila, no por columna) — ver weluk-schema.sql. La función es
-// security definer y solo toca `full_name`, acotada a `auth.uid()`.
+// `update_own_profile` es una función security definer acotada a `full_name`
+// (ver weluk-schema.sql) — `profiles` no tiene policy de UPDATE a propósito,
+// una policy plana dejaría reescribir `role`/`company_id` de la propia fila.
 export function useUpdateProfile() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function updateProfile(fullName: string): Promise<Profile | null> {
+  async function updateProfile(fullName: string) {
     loading.value = true
     error.value = null
 
-    const { data, error: err } = await supabase.rpc('update_own_profile', {
-      p_full_name: fullName,
-    })
+    const { data, error: err } = await supabase
+      .rpc('update_own_profile', { p_full_name: fullName })
+      .single()
 
     loading.value = false
+
+    const result = data as { id: string; full_name: string | null } | null
 
     if (err) {
       error.value = err.message
       return null
     }
-    if (!data) {
-      error.value = 'No se pudo actualizar el perfil.'
+    if (!result?.id) {
+      error.value = 'No se pudo actualizar el perfil (revisar policies de RLS).'
       return null
     }
-    return data as Profile
+    return result
   }
 
   return { updateProfile, loading, error }

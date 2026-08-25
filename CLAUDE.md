@@ -213,6 +213,13 @@ Reglas acordadas, **no romper sin preguntar**:
   `docs/02-datos.md § Helpers de RLS`); si alguien lo saca del DOM con el inspector, el
   resto de la UI sigue sin datos igual. Un `superadmin` navegando el detalle de una
   company deshabilitada (para reactivarla) nunca ve este overlay.
+- **Menú de usuario también en el footer del sidebar**: `NavFooter.vue` ahora tiene el
+  mismo `DropdownMenu` (avatar, nombre, email, link a Perfil, Cerrar sesión) que ya
+  existía en `AppHeader.vue` — mismo `authStore`/`onLogout`, sin lógica nueva, solo
+  duplicado como `SidebarMenuButton` para que el usuario tenga acceso a Perfil/logout
+  también con el sidebar abierto. Se abre con `side="right" align="end"` (al costado,
+  alineado abajo) en vez del default `side="top"`, porque encima del trigger tapaba el
+  texto de versión y quedaba pegado al borde inferior de la pantalla.
 
 ## Qué falta (en orden sugerido)
 
